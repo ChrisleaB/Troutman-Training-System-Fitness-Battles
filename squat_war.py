@@ -43,8 +43,9 @@ if mode == "Manage Users":
     new_weight = st.sidebar.number_input("Body Weight (kg):", min_value=40, max_value=200)
     
     # Gym selection
-    gym_options = ["Troutman Training Systems", "NA"]
+    gym_options = ["Troutman Training Systems", "NA", "Other"]
     selected_gym = st.sidebar.selectbox("Gym:", gym_options)
+    st.sidebar.caption("(if no affiliation --> NA)")
     
     if selected_gym == "Other":
         new_gym = st.sidebar.text_input("Enter gym name:")
