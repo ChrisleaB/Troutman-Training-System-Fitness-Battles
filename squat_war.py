@@ -6,7 +6,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import os
 
-st.set_page_config(page_title="Ultimate Troutman Squat War 2026", layout="wide")
+st.set_page_config(page_title="Ultimate Troutman Training Systems Squat War 2026", layout="wide")
 
 # Arnold Classic date
 ARNOLD_DATE = datetime(2026, 3, 4).date()
@@ -229,9 +229,9 @@ if st.session_state.just_submitted:
     st.session_state.just_submitted = False
 
 # ===== MAIN CONTENT =====
-st.title("⚔️ Ultimate Troutman Training Systems (and Associates)")
-st.markdown("# Squat War 2026")
-st.markdown("*All lifts POST-Arnold (March 4, 2026 onwards) are valid submissions*")
+st.title("⚔️ Ultimate Troutman Training Systems (and Associates) Squat War 2026")
+st.markdown("###Rules: All lifts POST-Arnold (March 4, 2026 onwards) are valid submissions*")
+st.markdown("*For technical support, questions, or suggestions, contact Chris at boyd.christinalea@gmail.com")
 st.markdown("---")
 
 if not users:
@@ -275,7 +275,7 @@ else:
     for i, row in enumerate(overall_data):
         row['Rank'] = i + 1
     
-    st.subheader("OVERALL CHAMPION")
+    st.subheader("BEARER OF ABSOLUTE SUPREMACY")
     
     if overall_data:
         overall_df = pd.DataFrame(overall_data)
@@ -415,4 +415,4 @@ else:
             st.info(f"{selected_user} hasn't logged any dated lifts yet")
 
 st.markdown("---")
-st.caption("Ultimate Troutman Training Systems - May the gains be ever in your favor ⚔️?")
+st.caption("Ultimate Troutman Training System's Squat War 2026 - May the gains be ever in your favor ⚔️")
