@@ -61,16 +61,18 @@ users = list(data.keys())
 
 # Admin login
 with st.sidebar.expander("? Admin", expanded=False):
-    admin_password = st.text_input("Password:", type="password", key="admin_pass")
+    if not st.session_state.get('admin_logged_in', False):
+        admin_password = st.text_input("Password:", type="password", key="admin_pass")
+        
+        if st.button("Login", key="admin_login"):
+            if admin_password == "user":
+                st.session_state.admin_logged_in = True
+                st.rerun()
+            else:
+                st.error("✗ Incorrect password")
     
-    if st.button("Login", key="admin_login"):
-        if admin_password == "user":
-            st.session_state.admin_logged_in = True
-            st.success("✓ Admin logged in")
-        else:
-            st.error("✗ Incorrect password")
-    
-    if st.session_state.get('admin_logged_in', False):
+    else:
+        st.success("✓ Admin logged in")
         st.markdown("---")
         st.markdown("**Admin Controls**")
         
@@ -94,6 +96,11 @@ with st.sidebar.expander("? Admin", expanded=False):
                 save_data(data)
                 st.session_state.just_submitted = True
                 st.rerun()
+        
+        st.markdown("---")
+        if st.button("Logout", key="admin_logout"):
+            st.session_state.admin_logged_in = False
+            st.rerun()
 
 st.sidebar.markdown("---")
 
