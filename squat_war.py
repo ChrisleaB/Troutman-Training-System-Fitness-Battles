@@ -37,17 +37,17 @@ st.sidebar.markdown("---")
 data = load_data()
 users = list(data.keys())
 
-mode = st.sidebar.radio("Select Action:", ["View Leaderboard", "Add Lift", "Manage Users", "Edit Profile"])
+mode = st.sidebar.radio("Select Action:", ["View Leaderboard", "Add Lift", "Add Athlete", "Edit Profile"])
 
-if mode == "Manage Users":
-    st.sidebar.subheader("Add New User")
-    new_user = st.sidebar.text_input("User Name:")
+if mode == "Add Athlete":
+    st.sidebar.subheader("Add New Athlete")
+    new_user = st.sidebar.text_input("Athlete Name:")
     new_age = st.sidebar.number_input("Age:", min_value=15, max_value=80)
     new_weight = st.sidebar.number_input("Body Weight (kg):", min_value=40, max_value=200)
     
-    # Gym selection
+    # Gym affiliation selection
     gym_options = ["Troutman Training Systems", "NA", "Other"]
-    selected_gym = st.sidebar.selectbox("Gym:", gym_options)
+    selected_gym = st.sidebar.selectbox("Gym Affiliation:", gym_options)
     st.sidebar.caption("(if no affiliation --> NA)")
     
     if selected_gym == "Other":
@@ -56,13 +56,12 @@ if mode == "Manage Users":
         new_gym = selected_gym
     
         
-    if st.sidebar.button("Add User", key="add_user"):
+    if st.sidebar.button("Add", key="add_athlete"):
         if new_user and new_user not in data:
             data[new_user] = {
                 'age': new_age,
                 'weight_kg': new_weight,
                 'gym': new_gym,
-                'description': 'NA',
                 'base_lifts': {
                     'Front Squat': 0,
                     'Back Squat': 0
@@ -91,20 +90,17 @@ elif mode == "Edit Profile":
         gym_options = ["Troutman Training Systems", "NA", "Other"]
         current_gym = user_data.get('gym', 'NA')
         default_gym = current_gym if current_gym in gym_options else "Other"
-        selected_gym = st.sidebar.selectbox("Gym:", gym_options, index=gym_options.index(default_gym))
+        selected_gym = st.sidebar.selectbox("Gym Affiliation:", gym_options, index=gym_options.index(default_gym))
         
         if selected_gym == "Other":
             new_gym = st.sidebar.text_input("Enter gym name:", value=current_gym if current_gym not in gym_options else "")
         else:
             new_gym = selected_gym
         
-        new_description = st.sidebar.text_input("Description/Affiliation:", value=user_data.get('description', 'NA'))
-        
         if st.sidebar.button("Save Changes", key="save_profile"):
             data[edit_user]['age'] = new_age
             data[edit_user]['weight_kg'] = new_weight
             data[edit_user]['gym'] = new_gym
-            data[edit_user]['description'] = new_description
             save_data(data)
             st.sidebar.success(f"✓ Updated {edit_user}'s profile!")
             st.rerun()
@@ -173,7 +169,7 @@ st.markdown("*All lifts POST Arnold (March 4, 2026 onwards) are valid submission
 st.markdown("---")
 
 if not users:
-    st.warning("No users yet. Add users in the sidebar!")
+    st.warning("No athletes yet. Add athletes in the sidebar!")
 else:
     all_lifts = ["Front Squat", "Back Squat"]
     
@@ -194,15 +190,14 @@ else:
             'Name': name,
             'Total PR': total_pr,
             'Body Weight (kg)': user['weight_kg'],
-            'Gym': user.get('gym', 'N/A'),
-            'Affiliation': user.get('description', 'NA')
+            'Gym Affiliation': user.get('gym', 'N/A')
         })
     
     overall_data = sorted(overall_data, key=lambda x: x['Total PR'], reverse=True)
     for i, row in enumerate(overall_data):
         row['Rank'] = i + 1
     
-    st.subheader("? 🏆 OVERALL CHAMPION")
+    st.subheader("? ? OVERALL CHAMPION")
     
     if overall_data:
         overall_df = pd.DataFrame(overall_data)
@@ -210,7 +205,7 @@ else:
         
         # Overall champion
         if overall_df.iloc[0]['Total PR'] > 0:
-            st.success(f"🥇 **REIGNING CHAMPION: {overall_df.iloc[0]['Name']}** with {overall_df.iloc[0]['Total PR']}kg total PR!")
+            st.success(f"? **REIGNING CHAMPION: {overall_df.iloc[0]['Name']}** with {overall_df.iloc[0]['Total PR']}kg total PR!")
         else:
             st.info("No PRs set yet!")
     
@@ -235,8 +230,7 @@ else:
                         'Weight (kg)': base_lift_weight,
                         'Body Weight (kg)': user['weight_kg'],
                         'Ratio (Lift/BW)': body_weight_ratio,
-                        'Gym': user.get('gym', 'N/A'),
-                        'Affiliation': user.get('description', 'NA')
+                        'Gym Affiliation': user.get('gym', 'N/A')
                     })
             
             if leaderboard_data:
@@ -247,11 +241,11 @@ else:
                 
                 # Display PR
                 top_pr = lb_df.iloc[0]['Weight (kg)']
-                st.info(f"📊 **Current {lift} PR: {top_pr}kg** (set by {lb_df.iloc[0]['Name']})")
+                st.info(f"? **Current {lift} PR: {top_pr}kg** (set by {lb_df.iloc[0]['Name']})")
                 
                 fig = px.bar(lb_df, x='Name', y='Weight (kg)', title=f"{lift} - Max Weights",
                             color='Ratio (Lift/BW)', color_continuous_scale='Viridis',
-                            hover_data=['Gym', 'Affiliation', 'Ratio (Lift/BW)'])
+                            hover_data=['Gym Affiliation', 'Ratio (Lift/BW)'])
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info(f"No {lift} base lifts set yet")
@@ -268,11 +262,10 @@ else:
         col1.metric("Name", selected_user)
         col2.metric("Age", user_data['age'])
         col3.metric("Body Weight", f"{user_data['weight_kg']} kg")
-        col4.metric("Gym", user_data.get('gym', 'N/A'))
+        col4.metric("Gym Affiliation", user_data.get('gym', 'N/A'))
         
-        col5, col6, col7 = st.columns(3)
-        col5.metric("Affiliation", user_data.get('description', 'NA'))
-        col6.metric("Total PR", f"{get_total_pr(selected_user)}kg")
+        col5, col6 = st.columns(2)
+        col5.metric("Total PR", f"{get_total_pr(selected_user)}kg")
         
         st.markdown("---")
         
