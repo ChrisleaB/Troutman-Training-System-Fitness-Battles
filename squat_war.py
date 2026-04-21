@@ -104,9 +104,9 @@ with st.sidebar.expander("Admin", expanded=False):
 
 st.sidebar.markdown("---")
 
-mode = st.sidebar.radio("Select Action:", ["View Leaderboard", "Add Lift", "Add Athlete", "Edit Profile"])
+mode = st.sidebar.radio("Select Action:", ["View Leaderboard", "Enter the Arena, Champion", "Submit Lift",  "Edit Profile"])
 
-if mode == "Add Athlete":
+if mode == "Enter the Arena, Champion":
     st.sidebar.subheader("Add New Athlete")
     new_user = st.sidebar.text_input("Athlete Name:")
     new_age = st.sidebar.number_input("Age:", min_value=15, max_value=80)
@@ -170,8 +170,8 @@ elif mode == "Edit Profile":
             st.session_state.just_submitted = True
             st.rerun()
 
-elif mode == "Add Lift":
-    st.sidebar.subheader("? Log Your Lift")
+elif mode == "Submit Lift":
+    st.sidebar.subheader("Log Your Lift")
     
     selected_user = st.sidebar.selectbox("Select Your Name:", users if users else ["No users yet"])
     
@@ -282,7 +282,7 @@ else:
         st.dataframe(overall_df, use_container_width=True)
         
         if overall_df.iloc[0]['Total PR'] > 0:
-            st.success(f"? **REIGNING CHAMPION: {overall_df.iloc[0]['Name']}** with {overall_df.iloc[0]['Total PR']}kg total PR improvement!")
+            st.success(f" **REIGNING CHAMPION: {overall_df.iloc[0]['Name']}** with {overall_df.iloc[0]['Total PR']}kg total PR improvement!")
         else:
             st.info("No PRs set yet!")
     
