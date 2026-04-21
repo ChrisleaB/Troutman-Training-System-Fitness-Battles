@@ -1,4 +1,3 @@
-import json
 from datetime import datetime, date
 from typing import Dict, Any
 
@@ -113,7 +112,8 @@ def add_lift(name: str, lift_type: str, weight_kg: float, reps: int, lift_date: 
             {
                 "weight_kg": weight_kg,
                 "reps": reps,
-                "date": datetime.combine(lift_date, datetime.min.time()).isoformat(),
+                "date": lift_date.isoformat(),              # user-entered lift date
+                "logged_at": datetime.now().isoformat(),    # submission timestamp
             }
         )
 
