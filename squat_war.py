@@ -360,7 +360,7 @@ elif mode == "Submit Lift":
                     st.sidebar.error("Could not set base lift.")
 
         else:
-            st.sidebar.markdown("**Log Dated Lift**")
+            st.sidebar.markdown("**Log Lift Attempt**")
             lift_types = ["Front Squat", "Back Squat"]
             selected_lift = st.sidebar.selectbox("Lift Type:", lift_types)
 
