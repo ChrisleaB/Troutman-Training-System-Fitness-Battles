@@ -108,34 +108,20 @@ def update_athlete(name: str, age: int, weight_kg: float, gym: str) -> bool:
 def add_lift(name: str, lift_type: str, weight_kg: float, reps: int, lift_date: date) -> bool:
     """Add a lift for an athlete."""
     try:
-        data = load_data()
-        if name not in data:
-            return False
-
-        if lift_type not in data[name]["lifts"]:
-            data[name]["lifts"][lift_type] = []
-
-        data[name]["lifts"][lift_type].append(
+        client.rpc(
+            "append_lift",
             {
-                "weight_kg": weight_kg,
-                "reps": reps,
-                "date": lift_date.isoformat(),              # user-entered lift date
-                "logged_at": datetime.now().isoformat(),    # submission timestamp
-            }
-        )
-
-        client.table("athletes").update(
-            {
-                "lifts": data[name]["lifts"],
-                "updated_at": datetime.now().isoformat(),
-            }
-        ).eq("name", name).execute()
-
+                "p_name": name,
+                "p_lift_type": lift_type,
+                "p_weight_kg": weight_kg,
+                "p_reps": reps,
+                "p_lift_date": lift_date.isoformat(),
+            },
+        ).execute()
         return True
     except Exception as e:
         print(f"Error adding lift: {e}")
         return False
-
 
 def set_base_lift(name: str, lift_type: str, weight_kg: float) -> bool:
     """Set a base lift for an athlete."""
