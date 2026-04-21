@@ -126,25 +126,35 @@ def build_overall_leader_history(data, all_lifts=ALL_LIFTS):
     if not data:
         return pd.DataFrame()
 
+    # Baselines per athlete
     baseline_map = {}
     for athlete, user in data.items():
         baseline_map[athlete] = {
             lift: user.get("base_lifts", {}).get(lift, 0) for lift in all_lifts
         }
 
+    # Current max seen so far per athlete/lift
     max_map = {
         athlete: {lift: baseline_map[athlete][lift] for lift in all_lifts}
         for athlete in data
     }
 
+    # Collect dated lift events
     events = []
     for athlete, user in data.items():
         for lift_type, attempts in user.get("lifts", {}).items():
             if lift_type not in all_lifts:
                 continue
+
             for attempt in attempts:
                 try:
-                    event_dt = pd.to_datetime(attempt.get("logged_at", attempt.get("date")))
+                    event_dt = pd.to_datetime(
+                        attempt.get("logged_at", attempt.get("date")),
+                        utc=True,
+                        errors="coerce",
+                    )
+                    if pd.isna(event_dt):
+                        continue
                 except Exception:
                     continue
 
@@ -210,7 +220,6 @@ def build_overall_leader_history(data, all_lifts=ALL_LIFTS):
             current_leader_total = leader_total
 
     return pd.DataFrame(history)
-
 
 # ===== SIDEBAR =====
 st.sidebar.title("⚔️ Squat War Portal")
