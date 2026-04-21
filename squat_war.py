@@ -116,7 +116,7 @@ elif mode == "Add Lift":
     
     if selected_user and selected_user in data:
         # Base lift option
-        st.sidebar.markdown("**Base Lifts (PR Baseline)**")
+        st.sidebar.markdown("**Base Lifts (Baseline for PR)**")
         add_base_lift = st.sidebar.checkbox("Set Base Lift?")
         
         if add_base_lift:
