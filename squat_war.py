@@ -322,7 +322,7 @@ else:
                 st.dataframe(lb_df, use_container_width=True)
                 
                 top_pr = lb_df.iloc[0]['Weight (kg)']
-                st.info(f"? **Current {lift} PR: {top_pr}kg** (set by {lb_df.iloc[0]['Name']} on {lb_df.iloc[0]['Date']})")
+                st.info(f"**Current {lift} PR: {top_pr}kg** (set by {lb_df.iloc[0]['Name']} on {lb_df.iloc[0]['Date']})")
                 
                 fig = px.bar(lb_df, x='Name', y='Weight (kg)', title=f"{lift} - Max Weights",
                             color='Ratio (Lift/BW)', color_continuous_scale='Viridis',
@@ -332,7 +332,7 @@ else:
                 st.info(f"No {lift} lifts logged yet")
     
     st.markdown("---")
-    st.subheader("? Individual Progress")
+    st.subheader("Individual Progress")
     
     selected_user = st.selectbox("Select User:", users)
     
