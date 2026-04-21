@@ -80,7 +80,14 @@ def add_athlete(name: str, age: int, weight_kg: float, gym: str) -> bool:
         print(f"Error adding athlete: {e}")
         return False
 
-
+def delete_athlete(name: str) -> bool:
+    """Delete an athlete completely from the database."""
+    try:
+        client.table("athletes").delete().eq("name", name).execute()
+        return True
+    except Exception as e:
+        print(f"Error deleting athlete: {e}")
+        return False
 def update_athlete(name: str, age: int, weight_kg: float, gym: str) -> bool:
     """Update an athlete's profile."""
     try:
