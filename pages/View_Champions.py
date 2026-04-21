@@ -9,6 +9,13 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+# Hide sidebar navigation tabs
+hide_pages = """
+<style>
+[data-testid="stSidebarNav"] { display: none; }
+</style>
+"""
+st.markdown(hide_pages, unsafe_allow_html=True)
 
 ARNOLD_DATE = datetime(2026, 3, 4).date()
 
