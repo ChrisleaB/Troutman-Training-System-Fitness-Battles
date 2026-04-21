@@ -43,7 +43,7 @@ if mode == "Manage Users":
     new_weight = st.sidebar.number_input("Body Weight (kg):", min_value=40, max_value=200)
     
     # Gym selection
-    gym_options = ["Vanderbilt Gym", "Planet Fitness", "CrossFit Box", "Home Gym", "Other"]
+    gym_options = ["Troutman Training Systems", "NA"]
     selected_gym = st.sidebar.selectbox("Gym:", gym_options)
     
     if selected_gym == "Other":
@@ -51,21 +51,14 @@ if mode == "Manage Users":
     else:
         new_gym = selected_gym
     
-    # Description/Affiliation
-    st.sidebar.markdown("**Description/Affiliation**")
-    st.sidebar.caption("(if no affiliation --> NA)")
-    new_description = st.sidebar.text_input("Description/Affiliation (optional):", placeholder="e.g., Troutman Athlete, Coach, etc.")
-    
-    if not new_description:
-        new_description = "NA"
-    
+        
     if st.sidebar.button("Add User", key="add_user"):
         if new_user and new_user not in data:
             data[new_user] = {
                 'age': new_age,
                 'weight_kg': new_weight,
                 'gym': new_gym,
-                'description': new_description,
+                
                 'lifts': {},
                 'created': datetime.now().isoformat()
             }
