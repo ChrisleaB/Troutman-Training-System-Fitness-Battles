@@ -119,7 +119,8 @@ def build_lift_leaderboard(data, lift):
 def build_overall_leader_history(data, all_lifts=ALL_LIFTS):
     """
     Tracks who held #1 overall over time.
-    Uses dated lift submissions in chronological order.
+    Uses logged_at timestamps so the timeline reflects when submissions were made.
+    Falls back to date if logged_at is missing.
     """
     if not data:
         return pd.DataFrame()
@@ -142,13 +143,14 @@ def build_overall_leader_history(data, all_lifts=ALL_LIFTS):
                 continue
             for attempt in attempts:
                 try:
-                    event_dt = pd.to_datetime(attempt["date"])
+                    event_dt = pd.to_datetime(attempt.get("logged_at", attempt.get("date")))
                 except Exception:
                     continue
 
                 events.append(
                     {
-                        "date": event_dt,
+                        "logged_at": event_dt,
+                        "lift_date": attempt.get("date"),
                         "athlete": athlete,
                         "lift_type": lift_type,
                         "weight_kg": attempt["weight_kg"],
@@ -159,7 +161,7 @@ def build_overall_leader_history(data, all_lifts=ALL_LIFTS):
     if not events:
         return pd.DataFrame()
 
-    events = sorted(events, key=lambda x: x["date"])
+    events = sorted(events, key=lambda x: x["logged_at"])
 
     history = []
     current_leader = None
@@ -194,7 +196,8 @@ def build_overall_leader_history(data, all_lifts=ALL_LIFTS):
         if leader_name != current_leader or leader_total != current_leader_total:
             history.append(
                 {
-                    "date": event["date"],
+                    "logged_at": event["logged_at"],
+                    "lift_date": event["lift_date"],
                     "leader": leader_name,
                     "total_pr": leader_total,
                     "trigger_athlete": athlete,
@@ -395,14 +398,14 @@ else:
     history_df = build_overall_leader_history(data)
 
     if not history_df.empty:
-        history_df = history_df.sort_values("date").reset_index(drop=True)
-        history_df["date_str"] = pd.to_datetime(history_df["date"]).dt.strftime("%Y-%m-%d")
+        history_df = history_df.sort_values("logged_at").reset_index(drop=True)
+        history_df["logged_at_str"] = pd.to_datetime(history_df["logged_at"]).dt.strftime("%Y-%m-%d %H:%M")
 
         history_display = history_df[
-            ["date_str", "leader", "total_pr", "trigger_athlete", "trigger_lift", "trigger_weight"]
+            ["logged_at_str", "leader", "total_pr", "trigger_athlete", "trigger_lift", "trigger_weight"]
         ].copy()
         history_display.columns = [
-            "Date",
+            "Logged At",
             "Leader",
             "Total PR",
             "Trigger Athlete",
@@ -413,13 +416,13 @@ else:
         fig = go.Figure()
         fig.add_trace(
             go.Scatter(
-                x=history_df["date"],
+                x=history_df["logged_at"],
                 y=history_df["total_pr"],
                 mode="lines+markers+text",
                 text=history_df["leader"],
                 textposition="top center",
                 hovertemplate=(
-                    "Date: %{x|%Y-%m-%d}<br>"
+                    "Logged At: %{x|%Y-%m-%d %H:%M}<br>"
                     "Leader: %{text}<br>"
                     "Total PR: %{y}kg<extra></extra>"
                 ),
@@ -427,7 +430,7 @@ else:
         )
         fig.update_layout(
             title="History of the #1 Overall Leader",
-            xaxis_title="Date",
+            xaxis_title="Logged At",
             yaxis_title="Leader's Total PR (kg)",
             showlegend=False,
         )
