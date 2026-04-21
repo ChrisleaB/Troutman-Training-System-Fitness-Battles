@@ -344,6 +344,7 @@ elif mode == "Submit Lift":
 
     if selected_user and selected_user in data:
         st.sidebar.markdown("**Base Lifts (PR Baseline)**")
+        st.sidebar.caption("What you were lifting PRE-Arnold or before PR attempts")
         add_base_lift = st.sidebar.checkbox("Set Base Lift?")
 
         if add_base_lift:
