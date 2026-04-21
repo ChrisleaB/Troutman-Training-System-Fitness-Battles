@@ -275,7 +275,7 @@ st.sidebar.markdown("---")
 
 mode = st.sidebar.radio(
     "Select Action:",
-    ["Enter the Arena, Champion", "Submit Lift", "Edit Profile"],
+    ["Enter the Arena, Champion", "Submit Lift", "Edit Champion Profile"],
 )
 
 if mode == "Enter the Arena, Champion":
@@ -304,7 +304,7 @@ if mode == "Enter the Arena, Champion":
         elif new_user in data:
             st.sidebar.error(f"✗ {new_user} already exists!")
 
-elif mode == "Edit Profile":
+elif mode == "Edit Champion Profile":
     st.sidebar.subheader("Edit Your Profile")
 
     edit_user = st.sidebar.selectbox("Select Your Name:", users if users else ["No users yet"])
