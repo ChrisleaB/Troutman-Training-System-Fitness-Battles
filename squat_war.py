@@ -251,7 +251,7 @@ users = list(data.keys())
 
 # Page navigation
 if st.sidebar.button("View Champions"):
-    st.switch_page("pages/View_Champions.py")
+    st.switch_page("View_Champions.py")
 
 # Admin login
 with st.sidebar.expander("Admin", expanded=False):
