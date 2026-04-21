@@ -18,13 +18,16 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Hide the default page navigation with CSS
+# Hide the navigation tabs
 hide_pages = """
     <style>
-    [data-testid="stPageLink-nav"] {
+    [data-testid="stSidebarNav"] {
         display: none;
     }
-    [data-testid="stSidebarNav"] {
+    .stTabs [data-baseweb="tab-list"] {
+        display: none;
+    }
+    ul.streamlit-expanderContent {
         display: none;
     }
     </style>
