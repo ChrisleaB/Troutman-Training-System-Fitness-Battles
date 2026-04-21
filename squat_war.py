@@ -230,8 +230,8 @@ if st.session_state.just_submitted:
 
 # ===== MAIN CONTENT =====
 st.title("⚔️ Ultimate Troutman Training Systems (and Associates) Squat War 2026")
-st.markdown("###Rules: All lifts POST-Arnold (March 4, 2026 onwards) are valid submissions*")
-st.markdown("*For technical support, questions, or suggestions, contact Chris at boyd.christinalea@gmail.com")
+st.markdown("### Rules: All lifts POST-Arnold (March 4, 2026 onwards) are valid submissions")
+st.markdown("*For technical support, questions, or suggestions, contact Chris at boyd.christinalea@gmail.com*")
 st.markdown("---")
 
 if not users:
