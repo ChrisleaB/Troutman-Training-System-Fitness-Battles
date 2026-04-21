@@ -299,7 +299,7 @@ else:
         st.markdown("---")
         
         # Display base lifts
-        st.markdown("**Base Lifts (PRs)**")
+        st.markdown("**Base Lifts**")
         base_lifts_display = []
         if 'base_lifts' in user_data:
             for lift_name, weight in user_data['base_lifts'].items():
@@ -307,7 +307,7 @@ else:
                     ratio = round(weight / user_data['weight_kg'], 2)
                     base_lifts_display.append({
                         'Lift': lift_name,
-                        'PR (kg)': weight,
+                        'Weight (kg)': weight,
                         'Ratio': ratio
                     })
         
