@@ -11,6 +11,7 @@ import json
 from datetime import datetime
 import plotly.express as px
 # Hide navigation tabs
+
 st.set_page_config(
     page_title="Ultimate Troutman Training Systems Squat War 2026",
     layout="wide",
@@ -30,7 +31,6 @@ hide_pages = """
 """
 st.markdown(hide_pages, unsafe_allow_html=True)
 
-st.set_page_config(page_title="View Champions", layout="wide")
 
 ARNOLD_DATE = datetime(2026, 3, 4).date()
 
