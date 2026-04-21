@@ -60,7 +60,7 @@ data = load_data()
 users = list(data.keys())
 
 # Admin login
-with st.sidebar.expander("? Admin", expanded=False):
+with st.sidebar.expander("Admin", expanded=False):
     if not st.session_state.get('admin_logged_in', False):
         admin_password = st.text_input("Password:", type="password", key="admin_pass")
         
@@ -231,7 +231,7 @@ if st.session_state.just_submitted:
 # ===== MAIN CONTENT =====
 st.title("⚔️ Ultimate Troutman Training Systems (and Associates)")
 st.markdown("# Squat War 2026")
-st.markdown("*All lifts POST Arnold (March 4, 2026 onwards) are valid submissions*")
+st.markdown("*All lifts POST-Arnold (March 4, 2026 onwards) are valid submissions*")
 st.markdown("---")
 
 if not users:
@@ -275,7 +275,7 @@ else:
     for i, row in enumerate(overall_data):
         row['Rank'] = i + 1
     
-    st.subheader("? ? OVERALL CHAMPION")
+    st.subheader("OVERALL CHAMPION")
     
     if overall_data:
         overall_df = pd.DataFrame(overall_data)
@@ -287,7 +287,7 @@ else:
             st.info("No PRs set yet!")
     
     st.markdown("---")
-    st.subheader("? Live Leaderboards")
+    st.subheader("Live Leaderboards")
     
     lift_tabs = st.tabs(all_lifts)
     
