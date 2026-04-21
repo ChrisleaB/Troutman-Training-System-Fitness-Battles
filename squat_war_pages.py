@@ -14,14 +14,6 @@ import plotly.graph_objects as go
 
 st.set_page_config(page_title="Ultimate Troutman Training Systems Squat War 2026", layout="wide")
 
-# Hide sidebar navigation tabs
-hide_pages = """
-<style>
-[data-testid="stSidebarNav"] { display: none; }
-</style>
-"""
-st.markdown(hide_pages, unsafe_allow_html=True)
-
 # Arnold Classic date
 ARNOLD_DATE = datetime(2026, 3, 4).date()
 ALL_LIFTS = ["Front Squat", "Back Squat"]
@@ -251,7 +243,7 @@ users = list(data.keys())
 
 # Page navigation
 if st.sidebar.button("View Champions"):
-    st.switch_page("pages/View_Champions.py")
+    st.switch_page("pages/1_View_Champions.py")
 
 # Admin login
 with st.sidebar.expander("Admin", expanded=False):
