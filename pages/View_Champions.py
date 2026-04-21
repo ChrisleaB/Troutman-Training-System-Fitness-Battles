@@ -10,6 +10,25 @@ import pandas as pd
 import json
 from datetime import datetime
 import plotly.express as px
+# Hide navigation tabs
+st.set_page_config(
+    page_title="Ultimate Troutman Training Systems Squat War 2026",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Hide the default page navigation with CSS
+hide_pages = """
+    <style>
+    [data-testid="stPageLink-nav"] {
+        display: none;
+    }
+    [data-testid="stSidebarNav"] {
+        display: none;
+    }
+    </style>
+"""
+st.markdown(hide_pages, unsafe_allow_html=True)
 
 st.set_page_config(page_title="View Champions", layout="wide")
 
