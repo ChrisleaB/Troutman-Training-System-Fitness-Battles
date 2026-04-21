@@ -18,6 +18,7 @@ from admin.supabase_client import (
     add_lift,
     set_base_lift,
     delete_athlete_lifts,
+    delete_athlete,
     ARNOLD_DATE,
     ALL_LIFTS,
 )
@@ -247,6 +248,23 @@ with st.sidebar.expander("Admin", expanded=False):
                 delete_athlete_lifts(clear_user)
                 st.session_state.just_submitted = True
                 st.rerun()
+
+        st.markdown("---")
+        st.markdown("**Delete Athlete**")
+
+        delete_user = st.selectbox("Select athlete to delete:", users if users else ["No users"])
+        confirm_delete = st.checkbox("I understand this permanently deletes the athlete")
+
+        if st.button("Delete Athlete", key="delete_athlete_btn"):
+            if not confirm_delete:
+                st.warning("Please confirm deletion first.")
+            elif delete_user and delete_user in data:
+                success = delete_athlete(delete_user)
+                if success:
+                    st.session_state.just_submitted = True
+                    st.rerun()
+                else:
+                    st.error("Failed to delete athlete.")
 
         st.markdown("---")
         if st.button("Logout", key="admin_logout"):
