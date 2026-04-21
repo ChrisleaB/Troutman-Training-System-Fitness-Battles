@@ -11,6 +11,12 @@ st.set_page_config(page_title="Ultimate Troutman Squat War 2026", layout="wide")
 # Arnold Classic date
 ARNOLD_DATE = datetime(2026, 3, 4).date()
 
+# Initialize session state
+if 'admin_logged_in' not in st.session_state:
+    st.session_state.admin_logged_in = False
+if 'just_submitted' not in st.session_state:
+    st.session_state.just_submitted = False
+
 # Use Streamlit Session State instead of local file
 @st.cache_resource
 def init_db():
@@ -25,14 +31,26 @@ def load_data():
         st.session_state.data = init_db()
     return st.session_state.data
 
+def remove_duplicates(data):
+    """Remove duplicate lift entries"""
+    for athlete in data:
+        for lift_type in data[athlete].get('lifts', {}):
+            lifts = data[athlete]['lifts'][lift_type]
+            unique_lifts = []
+            seen = set()
+            for lift in lifts:
+                lift_tuple = (lift['weight_kg'], lift['reps'], lift['date'])
+                if lift_tuple not in seen:
+                    unique_lifts.append(lift)
+                    seen.add(lift_tuple)
+            data[athlete]['lifts'][lift_type] = unique_lifts
+    return data
+
 def save_data(data):
     st.session_state.data = data
+    data = remove_duplicates(data)
     with open("squat_war_data.json", 'w') as f:
         json.dump(data, f, indent=2)
-
-# Initialize submission state
-if 'just_submitted' not in st.session_state:
-    st.session_state.just_submitted = False
 
 # ===== SIDEBAR =====
 st.sidebar.title("⚔️ Squat War Portal")
@@ -40,6 +58,44 @@ st.sidebar.markdown("---")
 
 data = load_data()
 users = list(data.keys())
+
+# Admin login
+with st.sidebar.expander("? Admin", expanded=False):
+    admin_password = st.text_input("Password:", type="password", key="admin_pass")
+    
+    if st.button("Login", key="admin_login"):
+        if admin_password == "user":
+            st.session_state.admin_logged_in = True
+            st.success("✓ Admin logged in")
+        else:
+            st.error("✗ Incorrect password")
+    
+    if st.session_state.get('admin_logged_in', False):
+        st.markdown("---")
+        st.markdown("**Admin Controls**")
+        
+        st.warning("⚠️ CAUTION: These actions cannot be undone!")
+        
+        clear_user = st.selectbox("Select user to clear data:", users if users else ["No users"])
+        
+        if st.button("Clear User Data", key="clear_user_data"):
+            if clear_user and clear_user in data:
+                data[clear_user] = {
+                    'age': data[clear_user]['age'],
+                    'weight_kg': data[clear_user]['weight_kg'],
+                    'gym': data[clear_user]['gym'],
+                    'base_lifts': {
+                        'Front Squat': 0,
+                        'Back Squat': 0
+                    },
+                    'lifts': {},
+                    'created': datetime.now().isoformat()
+                }
+                save_data(data)
+                st.session_state.just_submitted = True
+                st.rerun()
+
+st.sidebar.markdown("---")
 
 mode = st.sidebar.radio("Select Action:", ["View Leaderboard", "Add Lift", "Add Athlete", "Edit Profile"])
 
@@ -49,7 +105,6 @@ if mode == "Add Athlete":
     new_age = st.sidebar.number_input("Age:", min_value=15, max_value=80)
     new_weight = st.sidebar.number_input("Body Weight (kg):", min_value=40, max_value=200)
     
-    # Gym affiliation selection
     gym_options = ["Troutman Training Systems", "NA", "Other"]
     selected_gym = st.sidebar.selectbox("Gym Affiliation:", gym_options)
     st.sidebar.caption("(if no affiliation --> NA)")
@@ -59,7 +114,6 @@ if mode == "Add Athlete":
     else:
         new_gym = selected_gym
     
-        
     if st.sidebar.button("Add", key="add_athlete"):
         if new_user and new_user not in data:
             data[new_user] = {
@@ -115,8 +169,7 @@ elif mode == "Add Lift":
     selected_user = st.sidebar.selectbox("Select Your Name:", users if users else ["No users yet"])
     
     if selected_user and selected_user in data:
-        # Base lift option
-        st.sidebar.markdown("**Base Lifts (Baseline for PR)**")
+        st.sidebar.markdown("**Base Lifts (PR Baseline)**")
         add_base_lift = st.sidebar.checkbox("Set Base Lift?")
         
         if add_base_lift:
@@ -139,11 +192,9 @@ elif mode == "Add Lift":
             weight_kg = st.sidebar.number_input("Weight (kg):", min_value=20, max_value=500)
             reps = st.sidebar.number_input("Reps:", min_value=1, max_value=20, value=1)
             
-            # Date picker
             lift_date = st.sidebar.date_input("Date of Lift:", value=datetime.now().date())
             
             if st.sidebar.button("Submit Lift", key="submit_lift"):
-                # Validate date
                 if lift_date < ARNOLD_DATE:
                     st.sidebar.error(f"❌ Invalid submission! Must be during or after Arnold (March 4, 2026)")
                 elif selected_lift:
@@ -153,7 +204,6 @@ elif mode == "Add Lift":
                     if selected_lift not in data[selected_user]['lifts']:
                         data[selected_user]['lifts'][selected_lift] = []
                     
-                    # Convert date to datetime string
                     lift_datetime = datetime.combine(lift_date, datetime.min.time()).isoformat()
                     
                     data[selected_user]['lifts'][selected_lift].append({
@@ -182,8 +232,8 @@ if not users:
 else:
     all_lifts = ["Front Squat", "Back Squat"]
     
-    # Calculate total PR (max lift - baseline) for each user
     def get_total_pr(user_name):
+        """Calculate total PR improvement (max - baseline)"""
         user = data[user_name]
         total = 0
         base_lifts = user.get('base_lifts', {})
@@ -192,19 +242,17 @@ else:
         for lift_type in all_lifts:
             baseline = base_lifts.get(lift_type, 0)
             
-            # Find max weight for this lift from dated attempts
             if lift_type in lifts and lifts[lift_type]:
                 max_weight = max([attempt['weight_kg'] for attempt in lifts[lift_type]])
             else:
                 max_weight = baseline
             
-            # PR is improvement from baseline
             pr_improvement = max_weight - baseline
             total += pr_improvement
         
         return total
     
-    # ===== OVERALL TAB =====
+    # ===== OVERALL CHAMPION =====
     overall_data = []
     for name, user in data.items():
         total_pr = get_total_pr(name)
@@ -226,7 +274,6 @@ else:
         overall_df = pd.DataFrame(overall_data)
         st.dataframe(overall_df, use_container_width=True)
         
-        # Overall champion
         if overall_df.iloc[0]['Total PR'] > 0:
             st.success(f"? **REIGNING CHAMPION: {overall_df.iloc[0]['Name']}** with {overall_df.iloc[0]['Total PR']}kg total PR improvement!")
         else:
@@ -245,7 +292,6 @@ else:
             for name, user in data.items():
                 lifts = user.get('lifts', {})
                 
-                # Only show max from DATED attempts, never baseline
                 if lift in lifts and lifts[lift]:
                     max_lift = max(lifts[lift], key=lambda x: x['weight_kg'])
                     max_weight = max_lift['weight_kg']
@@ -268,7 +314,6 @@ else:
                 
                 st.dataframe(lb_df, use_container_width=True)
                 
-                # Display PR
                 top_pr = lb_df.iloc[0]['Weight (kg)']
                 st.info(f"? **Current {lift} PR: {top_pr}kg** (set by {lb_df.iloc[0]['Name']} on {lb_df.iloc[0]['Date']})")
                 
@@ -298,8 +343,7 @@ else:
         
         st.markdown("---")
         
-        # Display base lifts
-        st.markdown("**Base Lifts**")
+        st.markdown("**Base Lifts (PRs)**")
         base_lifts_display = []
         if 'base_lifts' in user_data:
             for lift_name, weight in user_data['base_lifts'].items():
@@ -307,7 +351,7 @@ else:
                     ratio = round(weight / user_data['weight_kg'], 2)
                     base_lifts_display.append({
                         'Lift': lift_name,
-                        'Weight (kg)': weight,
+                        'PR (kg)': weight,
                         'Ratio': ratio
                     })
         
