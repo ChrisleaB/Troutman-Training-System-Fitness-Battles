@@ -70,7 +70,7 @@ if mode == "Add Athlete":
                 'created': datetime.now().isoformat()
             }
             save_data(data)
-            st.sidebar.success(f"✓ Added {new_user} from {new_gym}!")
+            st.toast("✓ Submission saved")
             st.rerun()
         elif new_user in data:
             st.sidebar.error(f"✗ {new_user} already exists!")
@@ -102,7 +102,7 @@ elif mode == "Edit Profile":
             data[edit_user]['weight_kg'] = new_weight
             data[edit_user]['gym'] = new_gym
             save_data(data)
-            st.sidebar.success(f"✓ Updated {edit_user}'s profile!")
+            st.toast("✓ Submission saved")
             st.rerun()
 
 elif mode == "Add Lift":
@@ -124,7 +124,7 @@ elif mode == "Add Lift":
                     data[selected_user]['base_lifts'] = {}
                 data[selected_user]['base_lifts'][base_lift_type] = base_weight
                 save_data(data)
-                st.sidebar.success(f"✓ Set {base_lift_type} base to {base_weight}kg!")
+                st.toast("✓ Submission saved")
                 st.rerun()
         
         else:
@@ -159,7 +159,7 @@ elif mode == "Add Lift":
                     })
                     
                     save_data(data)
-                    st.sidebar.success(f"✓ {selected_user} logged {weight_kg}kg x{reps} {selected_lift} on {lift_date}!")
+                    st.toast("✓ Submission saved")
                     st.rerun()
 
 # ===== MAIN CONTENT =====
@@ -173,12 +173,26 @@ if not users:
 else:
     all_lifts = ["Front Squat", "Back Squat"]
     
-    # Calculate total PR for each user
+    # Calculate total PR (max lift - baseline) for each user
     def get_total_pr(user_name):
         user = data[user_name]
         total = 0
-        if 'base_lifts' in user:
-            total = sum(user['base_lifts'].values())
+        base_lifts = user.get('base_lifts', {})
+        lifts = user.get('lifts', {})
+        
+        for lift_type in all_lifts:
+            baseline = base_lifts.get(lift_type, 0)
+            
+            # Find max weight for this lift from dated attempts
+            if lift_type in lifts and lifts[lift_type]:
+                max_weight = max([attempt['weight_kg'] for attempt in lifts[lift_type]])
+            else:
+                max_weight = baseline
+            
+            # PR is improvement from baseline
+            pr_improvement = max_weight - baseline
+            total += pr_improvement
+        
         return total
     
     # ===== OVERALL TAB =====
@@ -205,7 +219,7 @@ else:
         
         # Overall champion
         if overall_df.iloc[0]['Total PR'] > 0:
-            st.success(f"? **REIGNING CHAMPION: {overall_df.iloc[0]['Name']}** with {overall_df.iloc[0]['Total PR']}kg total PR!")
+            st.success(f"? **REIGNING CHAMPION: {overall_df.iloc[0]['Name']}** with {overall_df.iloc[0]['Total PR']}kg total PR improvement!")
         else:
             st.info("No PRs set yet!")
     
@@ -265,7 +279,7 @@ else:
         col4.metric("Gym Affiliation", user_data.get('gym', 'N/A'))
         
         col5, col6 = st.columns(2)
-        col5.metric("Total PR", f"{get_total_pr(selected_user)}kg")
+        col5.metric("Total PR Improvement", f"{get_total_pr(selected_user)}kg")
         
         st.markdown("---")
         
