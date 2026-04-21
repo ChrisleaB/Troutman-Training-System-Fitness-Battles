@@ -275,14 +275,14 @@ else:
     for i, row in enumerate(overall_data):
         row['Rank'] = i + 1
     
-    st.subheader("BEARER OF ABSOLUTE SUPREMACY")
+    st.subheader("REIGNING CHAMPIONS")
     
     if overall_data:
         overall_df = pd.DataFrame(overall_data)
         st.dataframe(overall_df, use_container_width=True)
         
         if overall_df.iloc[0]['Total PR'] > 0:
-            st.success(f" **REIGNING CHAMPION: {overall_df.iloc[0]['Name']}** with {overall_df.iloc[0]['Total PR']}kg total PR improvement!")
+            st.success(f" **BEARER OF ABSOLUTE SUPREMACY: {overall_df.iloc[0]['Name']}** with {overall_df.iloc[0]['Total PR']}kg total PR improvement!")
         else:
             st.info("No PRs set yet!")
     
