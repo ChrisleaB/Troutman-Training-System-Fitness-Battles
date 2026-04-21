@@ -381,6 +381,28 @@ else:
                 history_df['Body Weight Ratio'] = round(history_df['weight_kg'] / user_data['weight_kg'], 2)
                 history_df = history_df.sort_values('date')
                 
+                # ===== PR STATS =====
+                baseline = user_data.get('base_lifts', {}).get(selected_lift_history, 0)
+                max_weight = history_df['weight_kg'].max()
+                min_weight = history_df['weight_kg'].min()
+                avg_weight = round(history_df['weight_kg'].mean(), 1)
+                total_attempts = len(history_df)
+                pr_improvement = max_weight - baseline
+                
+                st.write(f"### {selected_lift_history} Stats")
+                
+                col1, col2, col3, col4, col5 = st.columns(5)
+                col1.metric("Baseline", f"{baseline}kg")
+                col2.metric("Current PR", f"{max_weight}kg")
+                col3.metric("PR Improvement", f"{pr_improvement}kg", delta=f"+{pr_improvement}kg")
+                col4.metric("Average Weight", f"{avg_weight}kg")
+                col5.metric("Total Attempts", total_attempts)
+                
+                col6, col7 = st.columns(2)
+                col6.metric("Min Lift", f"{min_weight}kg")
+                col7.metric("Best Ratio", f"{history_df['Body Weight Ratio'].max():.2f}x BW")
+                
+                st.markdown("---")
                 st.write(f"### {selected_lift_history} History")
                 st.dataframe(history_df[['weight_kg', 'reps', 'Body Weight Ratio', 'date']], use_container_width=True)
                 
