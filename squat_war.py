@@ -427,7 +427,7 @@ else:
 
     if not history_df.empty:
         history_df = history_df.sort_values("logged_at").reset_index(drop=True)
-        history_df["logged_at_str"] = pd.to_datetime(history_df["logged_at"]).dt.strftime("%Y-%m-%d %H:%M")
+        history_df["logged_at_str"] = history_df["logged_at"].dt.strftime("%Y-%m-%d %H:%M UTC")
 
         history_display = history_df[
             ["logged_at_str", "leader", "total_pr", "trigger_athlete", "trigger_lift", "trigger_weight"]
