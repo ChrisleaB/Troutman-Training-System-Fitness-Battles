@@ -5,8 +5,8 @@ import streamlit as st
 import supabase
 
 # Load from Streamlit secrets instead of hardcoding
-SUPABASE_URL = st.secrets["https://npndhanidytvcpxavlnd.supabase.co"]
-SUPABASE_KEY = st.secrets["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5wbmRoYW5pZHl0dmNweGF2bG5kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3OTU4MDMsImV4cCI6MjA5MjM3MTgwM30.QXAhNT7W8DmmVaxqUzlfrgbNRHaxuslTC8VheYgdLbs"]
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
 client = supabase.create_client(SUPABASE_URL, SUPABASE_KEY)
 
