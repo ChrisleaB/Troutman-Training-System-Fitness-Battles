@@ -7,12 +7,25 @@ Created on Tue Apr 21 11:11:18 2026
 
 import streamlit as st
 import pandas as pd
-import json
 from datetime import datetime
 import plotly.express as px
 import plotly.graph_objects as go
 
-st.set_page_config(page_title="Ultimate Troutman Training Systems Squat War 2026", layout="wide")
+from admin.supabase_client import (
+    load_data,
+    add_athlete,
+    update_athlete,
+    add_lift,
+    set_base_lift,
+    delete_athlete_lifts,
+    ARNOLD_DATE,
+    ALL_LIFTS,
+)
+
+st.set_page_config(
+    page_title="Ultimate Troutman Training Systems Squat War 2026",
+    layout="wide",
+)
 
 # Hide sidebar navigation tabs
 hide_pages = """
@@ -22,53 +35,11 @@ hide_pages = """
 """
 st.markdown(hide_pages, unsafe_allow_html=True)
 
-# Arnold Classic date
-ARNOLD_DATE = datetime(2026, 3, 4).date()
-ALL_LIFTS = ["Front Squat", "Back Squat"]
-
 # Initialize session state
 if "admin_logged_in" not in st.session_state:
     st.session_state.admin_logged_in = False
 if "just_submitted" not in st.session_state:
     st.session_state.just_submitted = False
-
-
-@st.cache_resource
-def init_db():
-    try:
-        with open("squat_war_data.json", "r") as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return {}
-
-
-def load_data():
-    if "data" not in st.session_state:
-        st.session_state.data = init_db()
-    return st.session_state.data
-
-
-def remove_duplicates(data):
-    """Remove duplicate lift entries."""
-    for athlete in data:
-        for lift_type in data[athlete].get("lifts", {}):
-            lifts = data[athlete]["lifts"][lift_type]
-            unique_lifts = []
-            seen = set()
-            for lift in lifts:
-                lift_tuple = (lift["weight_kg"], lift["reps"], lift["date"])
-                if lift_tuple not in seen:
-                    unique_lifts.append(lift)
-                    seen.add(lift_tuple)
-            data[athlete]["lifts"][lift_type] = unique_lifts
-    return data
-
-
-def save_data(data):
-    data = remove_duplicates(data)
-    st.session_state.data = data
-    with open("squat_war_data.json", "w") as f:
-        json.dump(data, f, indent=2)
 
 
 def get_total_pr(data, user_name, all_lifts=ALL_LIFTS):
@@ -153,20 +124,17 @@ def build_overall_leader_history(data, all_lifts=ALL_LIFTS):
     if not data:
         return pd.DataFrame()
 
-    # Baselines per athlete
     baseline_map = {}
     for athlete, user in data.items():
         baseline_map[athlete] = {
             lift: user.get("base_lifts", {}).get(lift, 0) for lift in all_lifts
         }
 
-    # Current max seen so far per athlete/lift
     max_map = {
         athlete: {lift: baseline_map[athlete][lift] for lift in all_lifts}
         for athlete in data
     }
 
-    # Collect dated lift events
     events = []
     for athlete, user in data.items():
         for lift_type, attempts in user.get("lifts", {}).items():
@@ -216,7 +184,6 @@ def build_overall_leader_history(data, all_lifts=ALL_LIFTS):
         max_total = max(totals.values())
         tied_leaders = [name for name, value in totals.items() if value == max_total]
 
-        # Keep current leader if tied, otherwise use first tied leader
         if current_leader in tied_leaders:
             leader_name = current_leader
         else:
@@ -224,7 +191,6 @@ def build_overall_leader_history(data, all_lifts=ALL_LIFTS):
 
         leader_total = totals[leader_name]
 
-        # Only record changes to keep the timeline readable
         if leader_name != current_leader or leader_total != current_leader_total:
             history.append(
                 {
@@ -275,18 +241,7 @@ with st.sidebar.expander("Admin", expanded=False):
 
         if st.button("Clear User Data", key="clear_user_data"):
             if clear_user and clear_user in data:
-                data[clear_user] = {
-                    "age": data[clear_user]["age"],
-                    "weight_kg": data[clear_user]["weight_kg"],
-                    "gym": data[clear_user]["gym"],
-                    "base_lifts": {
-                        "Front Squat": 0,
-                        "Back Squat": 0,
-                    },
-                    "lifts": {},
-                    "created": datetime.now().isoformat(),
-                }
-                save_data(data)
+                delete_athlete_lifts(clear_user)
                 st.session_state.just_submitted = True
                 st.rerun()
 
@@ -319,20 +274,12 @@ if mode == "Enter the Arena, Champion":
 
     if st.sidebar.button("Add", key="add_athlete"):
         if new_user and new_user not in data:
-            data[new_user] = {
-                "age": new_age,
-                "weight_kg": new_weight,
-                "gym": new_gym,
-                "base_lifts": {
-                    "Front Squat": 0,
-                    "Back Squat": 0,
-                },
-                "lifts": {},
-                "created": datetime.now().isoformat(),
-            }
-            save_data(data)
-            st.session_state.just_submitted = True
-            st.rerun()
+            ok = add_athlete(new_user, int(new_age), float(new_weight), new_gym)
+            if ok:
+                st.session_state.just_submitted = True
+                st.rerun()
+            else:
+                st.sidebar.error("Could not add athlete.")
         elif new_user in data:
             st.sidebar.error(f"✗ {new_user} already exists!")
 
@@ -362,12 +309,12 @@ elif mode == "Edit Profile":
             new_gym = selected_gym
 
         if st.sidebar.button("Save Changes", key="save_profile"):
-            data[edit_user]["age"] = new_age
-            data[edit_user]["weight_kg"] = new_weight
-            data[edit_user]["gym"] = new_gym
-            save_data(data)
-            st.session_state.just_submitted = True
-            st.rerun()
+            ok = update_athlete(edit_user, int(new_age), float(new_weight), new_gym)
+            if ok:
+                st.session_state.just_submitted = True
+                st.rerun()
+            else:
+                st.sidebar.error("Could not update athlete.")
 
 elif mode == "Submit Lift":
     st.sidebar.subheader("Log Your Lift")
@@ -383,12 +330,12 @@ elif mode == "Submit Lift":
             base_weight = st.sidebar.number_input("Base Weight (kg):", min_value=20, max_value=500)
 
             if st.sidebar.button("Set Base Lift", key="set_base"):
-                if "base_lifts" not in data[selected_user]:
-                    data[selected_user]["base_lifts"] = {}
-                data[selected_user]["base_lifts"][base_lift_type] = base_weight
-                save_data(data)
-                st.session_state.just_submitted = True
-                st.rerun()
+                ok = set_base_lift(selected_user, base_lift_type, float(base_weight))
+                if ok:
+                    st.session_state.just_submitted = True
+                    st.rerun()
+                else:
+                    st.sidebar.error("Could not set base lift.")
 
         else:
             st.sidebar.markdown("**Log Dated Lift**")
@@ -404,25 +351,12 @@ elif mode == "Submit Lift":
                 if lift_date < ARNOLD_DATE:
                     st.sidebar.error("❌ Invalid submission! Must be during or after Arnold (March 4, 2026)")
                 elif selected_lift:
-                    if "lifts" not in data[selected_user]:
-                        data[selected_user]["lifts"] = {}
-
-                    if selected_lift not in data[selected_user]["lifts"]:
-                        data[selected_user]["lifts"][selected_lift] = []
-
-                    lift_datetime = datetime.combine(lift_date, datetime.min.time()).isoformat()
-
-                    data[selected_user]["lifts"][selected_lift].append(
-                        {
-                            "weight_kg": weight_kg,
-                            "reps": reps,
-                            "date": lift_datetime,
-                        }
-                    )
-
-                    save_data(data)
-                    st.session_state.just_submitted = True
-                    st.rerun()
+                    ok = add_lift(selected_user, selected_lift, float(weight_kg), int(reps), lift_date)
+                    if ok:
+                        st.session_state.just_submitted = True
+                        st.rerun()
+                    else:
+                        st.sidebar.error("Could not submit lift.")
 
 # Show popup if submission just happened
 if st.session_state.just_submitted:
@@ -464,7 +398,9 @@ else:
         history_df = history_df.sort_values("date").reset_index(drop=True)
         history_df["date_str"] = pd.to_datetime(history_df["date"]).dt.strftime("%Y-%m-%d")
 
-        history_display = history_df[["date_str", "leader", "total_pr", "trigger_athlete", "trigger_lift", "trigger_weight"]].copy()
+        history_display = history_df[
+            ["date_str", "leader", "total_pr", "trigger_athlete", "trigger_lift", "trigger_weight"]
+        ].copy()
         history_display.columns = [
             "Date",
             "Leader",
