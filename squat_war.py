@@ -30,6 +30,10 @@ def save_data(data):
     with open("squat_war_data.json", 'w') as f:
         json.dump(data, f, indent=2)
 
+# Initialize submission state
+if 'just_submitted' not in st.session_state:
+    st.session_state.just_submitted = False
+
 # ===== SIDEBAR =====
 st.sidebar.title("⚔️ Squat War Portal")
 st.sidebar.markdown("---")
@@ -70,7 +74,7 @@ if mode == "Add Athlete":
                 'created': datetime.now().isoformat()
             }
             save_data(data)
-            st.toast("✓ Submission saved")
+            st.session_state.just_submitted = True
             st.rerun()
         elif new_user in data:
             st.sidebar.error(f"✗ {new_user} already exists!")
@@ -102,7 +106,7 @@ elif mode == "Edit Profile":
             data[edit_user]['weight_kg'] = new_weight
             data[edit_user]['gym'] = new_gym
             save_data(data)
-            st.toast("✓ Submission saved")
+            st.session_state.just_submitted = True
             st.rerun()
 
 elif mode == "Add Lift":
@@ -124,7 +128,7 @@ elif mode == "Add Lift":
                     data[selected_user]['base_lifts'] = {}
                 data[selected_user]['base_lifts'][base_lift_type] = base_weight
                 save_data(data)
-                st.toast("✓ Submission saved")
+                st.session_state.just_submitted = True
                 st.rerun()
         
         else:
@@ -159,8 +163,13 @@ elif mode == "Add Lift":
                     })
                     
                     save_data(data)
-                    st.toast("✓ Submission saved")
+                    st.session_state.just_submitted = True
                     st.rerun()
+
+# Show popup if submission just happened
+if st.session_state.just_submitted:
+    st.success("✓ Submission saved")
+    st.session_state.just_submitted = False
 
 # ===== MAIN CONTENT =====
 st.title("⚔️ Ultimate Troutman Training Systems (and Associates)")
@@ -234,17 +243,23 @@ else:
             
             leaderboard_data = []
             for name, user in data.items():
-                base_lift_weight = user.get('base_lifts', {}).get(lift, 0)
+                lifts = user.get('lifts', {})
                 
-                if base_lift_weight > 0:
-                    body_weight_ratio = round(base_lift_weight / user['weight_kg'], 2)
+                # Only show max from DATED attempts, never baseline
+                if lift in lifts and lifts[lift]:
+                    max_lift = max(lifts[lift], key=lambda x: x['weight_kg'])
+                    max_weight = max_lift['weight_kg']
+                    
+                    body_weight_ratio = round(max_weight / user['weight_kg'], 2)
                     leaderboard_data.append({
                         'Rank': len(leaderboard_data) + 1,
                         'Name': name,
-                        'Weight (kg)': base_lift_weight,
+                        'Weight (kg)': max_weight,
+                        'Reps': max_lift['reps'],
                         'Body Weight (kg)': user['weight_kg'],
                         'Ratio (Lift/BW)': body_weight_ratio,
-                        'Gym Affiliation': user.get('gym', 'N/A')
+                        'Gym Affiliation': user.get('gym', 'N/A'),
+                        'Date': max_lift['date'][:10]
                     })
             
             if leaderboard_data:
@@ -255,14 +270,14 @@ else:
                 
                 # Display PR
                 top_pr = lb_df.iloc[0]['Weight (kg)']
-                st.info(f"? **Current {lift} PR: {top_pr}kg** (set by {lb_df.iloc[0]['Name']})")
+                st.info(f"? **Current {lift} PR: {top_pr}kg** (set by {lb_df.iloc[0]['Name']} on {lb_df.iloc[0]['Date']})")
                 
                 fig = px.bar(lb_df, x='Name', y='Weight (kg)', title=f"{lift} - Max Weights",
                             color='Ratio (Lift/BW)', color_continuous_scale='Viridis',
-                            hover_data=['Gym Affiliation', 'Ratio (Lift/BW)'])
+                            hover_data=['Gym Affiliation', 'Ratio (Lift/BW)', 'Date'])
                 st.plotly_chart(fig, use_container_width=True)
             else:
-                st.info(f"No {lift} base lifts set yet")
+                st.info(f"No {lift} lifts logged yet")
     
     st.markdown("---")
     st.subheader("? Individual Progress")
