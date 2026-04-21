@@ -44,7 +44,7 @@ def get_total_pr(data, user_name):
 st.sidebar.title("⚔️ Squat War Portal")
 st.sidebar.markdown("---")
 
-if st.sidebar.button("⬅ Back to Main"):
+if st.sidebar.button("⬅ Back to Leaderboard"):
     st.switch_page("squat_war.py")
 
 st.sidebar.markdown("---")
