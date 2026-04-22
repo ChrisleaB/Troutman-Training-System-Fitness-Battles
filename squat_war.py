@@ -43,22 +43,51 @@ if "just_submitted" not in st.session_state:
     st.session_state.just_submitted = False
 
 
+def has_valid_base_lift(user_data, lift_type):
+    """A lift only counts if the athlete has a positive baseline set for that lift."""
+    return user_data.get("base_lifts", {}).get(lift_type, 0) > 0
+
+
+def get_best_single_attempt(user_data, lift_type):
+    """Return best 1-rep attempt for a lift, or None."""
+    attempts = user_data.get("lifts", {}).get(lift_type, [])
+    single_attempts = [a for a in attempts if int(a.get("reps", 1)) == 1]
+    if not single_attempts:
+        return None
+    return max(a["weight_kg"] for a in single_attempts)
+
+
+def get_lifts_missing_baseline(user_data):
+    """Return lift types that have attempts logged but no base lift set."""
+    missing = []
+    for lift_type in ALL_LIFTS:
+        if user_data.get("lifts", {}).get(lift_type) and not has_valid_base_lift(user_data, lift_type):
+            missing.append(lift_type)
+    return missing
+
+
 def get_total_pr(data, user_name, all_lifts=ALL_LIFTS):
-    """Calculate total PR improvement (max - baseline) for one athlete."""
+    """
+    Calculate total PR improvement using only 1-rep attempts.
+    Negative contributions are not counted.
+    Lifts without a valid base lift do not contribute.
+    """
     user = data[user_name]
     total = 0
-    base_lifts = user.get("base_lifts", {})
-    lifts = user.get("lifts", {})
 
     for lift_type in all_lifts:
-        baseline = base_lifts.get(lift_type, 0)
+        if not has_valid_base_lift(user, lift_type):
+            continue
 
-        if lift_type in lifts and lifts[lift_type]:
-            max_weight = max(attempt["weight_kg"] for attempt in lifts[lift_type])
+        baseline = user.get("base_lifts", {}).get(lift_type, 0)
+        best_single = get_best_single_attempt(user, lift_type)
+
+        if best_single is None:
+            contribution = 0
         else:
-            max_weight = baseline
+            contribution = max(0, best_single - baseline)
 
-        total += max_weight - baseline
+        total += contribution
 
     return total
 
@@ -72,7 +101,7 @@ def build_overall_leaderboard(data, all_lifts=ALL_LIFTS):
                 "Rank": 0,
                 "Name": name,
                 "Total PR": total_pr,
-                "Body Weight (kg)": user["weight_kg"],
+                "Body Weight (kg)": user.get("weight_kg", 0),
                 "Gym Affiliation": user.get("gym", "N/A"),
             }
         )
@@ -85,13 +114,21 @@ def build_overall_leaderboard(data, all_lifts=ALL_LIFTS):
 
 
 def build_lift_leaderboard(data, lift):
+    """
+    Build a lift leaderboard using only 1-rep attempts.
+    Athletes without a valid base lift for that movement are excluded.
+    """
     leaderboard_data = []
 
     for name, user in data.items():
-        lifts = user.get("lifts", {})
+        if not has_valid_base_lift(user, lift):
+            continue
 
-        if lift in lifts and lifts[lift]:
-            max_lift = max(lifts[lift], key=lambda x: x["weight_kg"])
+        attempts = user.get("lifts", {}).get(lift, [])
+        single_attempts = [a for a in attempts if int(a.get("reps", 1)) == 1]
+
+        if single_attempts:
+            max_lift = max(single_attempts, key=lambda x: x["weight_kg"])
             max_weight = max_lift["weight_kg"]
             body_weight_ratio = round(max_weight / user["weight_kg"], 2)
 
@@ -111,7 +148,11 @@ def build_lift_leaderboard(data, lift):
     if not leaderboard_data:
         return pd.DataFrame()
 
-    lb_df = pd.DataFrame(leaderboard_data).sort_values("Weight (kg)", ascending=False).reset_index(drop=True)
+    lb_df = (
+        pd.DataFrame(leaderboard_data)
+        .sort_values("Weight (kg)", ascending=False)
+        .reset_index(drop=True)
+    )
     lb_df.index = lb_df.index + 1
     lb_df["Rank"] = lb_df.index
     return lb_df.reset_index(drop=True)
@@ -121,32 +162,36 @@ def build_overall_leader_history(data, all_lifts=ALL_LIFTS):
     """
     Tracks who held #1 overall over time.
     Uses logged_at timestamps so the timeline reflects when submissions were made.
-    Falls back to date if logged_at is missing.
+    Only 1-rep attempts contribute.
+    Negative PR changes are clamped to 0.
+    Lifts without a valid base lift do not contribute.
     """
     if not data:
         return pd.DataFrame()
 
-    # Baselines per athlete
-    baseline_map = {}
-    for athlete, user in data.items():
-        baseline_map[athlete] = {
-            lift: user.get("base_lifts", {}).get(lift, 0) for lift in all_lifts
-        }
+    baseline_map = {
+        athlete: {lift: user.get("base_lifts", {}).get(lift, 0) for lift in all_lifts}
+        for athlete, user in data.items()
+    }
 
-    # Current max seen so far per athlete/lift
     max_map = {
         athlete: {lift: baseline_map[athlete][lift] for lift in all_lifts}
         for athlete in data
     }
 
-    # Collect dated lift events
     events = []
     for athlete, user in data.items():
         for lift_type, attempts in user.get("lifts", {}).items():
             if lift_type not in all_lifts:
                 continue
 
+            if not has_valid_base_lift(user, lift_type):
+                continue
+
             for attempt in attempts:
+                if int(attempt.get("reps", 1)) != 1:
+                    continue
+
                 try:
                     event_dt = pd.to_datetime(
                         attempt.get("logged_at", attempt.get("date")),
@@ -188,10 +233,13 @@ def build_overall_leader_history(data, all_lifts=ALL_LIFTS):
         totals = {}
         for name in data:
             total_pr = 0
+            user = data[name]
             for lift in all_lifts:
+                if not has_valid_base_lift(user, lift):
+                    continue
                 baseline = baseline_map[name][lift]
                 current_max = max_map[name][lift]
-                total_pr += current_max - baseline
+                total_pr += max(0, current_max - baseline)
             totals[name] = total_pr
 
         max_total = max(totals.values())
@@ -220,6 +268,7 @@ def build_overall_leader_history(data, all_lifts=ALL_LIFTS):
             current_leader_total = leader_total
 
     return pd.DataFrame(history)
+
 
 # ===== SIDEBAR =====
 st.sidebar.title("⚔️ Squat War Portal")
@@ -322,13 +371,19 @@ elif mode == "Edit Champion Profile":
         user_data = data[edit_user]
 
         st.sidebar.markdown("**Edit Information**")
-        new_age = st.sidebar.number_input("Age:", min_value=15, max_value=80, value=user_data["age"])
-        new_weight = st.sidebar.number_input("Body Weight (kg):", min_value=40, max_value=200, value=user_data["weight_kg"])
+        new_age = st.sidebar.number_input(
+            "Age:", min_value=15, max_value=80, value=user_data.get("age", 0)
+        )
+        new_weight = st.sidebar.number_input(
+            "Body Weight (kg):", min_value=40, max_value=200, value=user_data.get("weight_kg", 0)
+        )
 
         gym_options = ["Troutman Training Systems", "NA", "Other"]
         current_gym = user_data.get("gym", "NA")
         default_gym = current_gym if current_gym in gym_options else "Other"
-        selected_gym = st.sidebar.selectbox("Gym Affiliation:", gym_options, index=gym_options.index(default_gym))
+        selected_gym = st.sidebar.selectbox(
+            "Gym Affiliation:", gym_options, index=gym_options.index(default_gym)
+        )
 
         if selected_gym == "Other":
             new_gym = st.sidebar.text_input(
@@ -349,7 +404,9 @@ elif mode == "Edit Champion Profile":
 elif mode == "Submit Lift":
     st.sidebar.subheader("Log Your Lift")
 
-    selected_user = st.sidebar.selectbox("Select Your Name:", users if users else ["No users yet"])
+    selected_user = st.sidebar.selectbox(
+        "Select Your Name:", users if users else ["No users yet"]
+    )
 
     if selected_user and selected_user in data:
         st.sidebar.markdown("**Base Lifts (PR Baseline)**")
@@ -357,7 +414,7 @@ elif mode == "Submit Lift":
         add_base_lift = st.sidebar.checkbox("Set Base Lift?")
 
         if add_base_lift:
-            base_lift_type = st.sidebar.selectbox("Lift Type:", ["Front Squat", "Back Squat"])
+            base_lift_type = st.sidebar.selectbox("Lift Type:", ALL_LIFTS)
             base_weight = st.sidebar.number_input("Base Weight (kg):", min_value=20, max_value=500)
 
             if st.sidebar.button("Set Base Lift", key="set_base"):
@@ -367,10 +424,9 @@ elif mode == "Submit Lift":
                     st.rerun()
                 else:
                     st.sidebar.error("Could not set base lift.")
-
         else:
             st.sidebar.markdown("**Lift Attempt**")
-            lift_types = ["Front Squat", "Back Squat"]
+            lift_types = ALL_LIFTS
             selected_lift = st.sidebar.selectbox("Lift Type:", lift_types)
 
             weight_kg = st.sidebar.number_input("Weight (kg):", min_value=20, max_value=500)
@@ -380,7 +436,9 @@ elif mode == "Submit Lift":
 
             if st.sidebar.button("Submit Lift", key="submit_lift"):
                 if lift_date < ARNOLD_DATE:
-                    st.sidebar.error("❌ Invalid submission! Must be during or after Arnold (March 4, 2026)")
+                    st.sidebar.error(
+                        "❌ Invalid submission! Must be during or after Arnold (March 4, 2026)"
+                    )
                 elif selected_lift:
                     ok = add_lift(selected_user, selected_lift, float(weight_kg), int(reps), lift_date)
                     if ok:
@@ -500,7 +558,7 @@ else:
                 )
                 st.plotly_chart(fig, use_container_width=True)
             else:
-                st.info(f"No {lift} lifts logged yet")
+                st.info(f"No athletes with a valid base lift and 1-rep attempt for {lift} yet.")
 
 st.markdown("---")
 st.caption("Ultimate Troutman Training System's Squat War 2026 - May the gains be ever in your favor ⚔️")

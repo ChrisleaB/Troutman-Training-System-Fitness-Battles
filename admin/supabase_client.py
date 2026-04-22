@@ -10,7 +10,14 @@ SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 client: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 ARNOLD_DATE = date(2026, 3, 4)
-ALL_LIFTS = ["Front Squat", "Back Squat"]
+ALL_LIFTS = ["Front Squat", "Back Squat", "Pause Front Squat", "Pause Back Squat"]
+
+DEFAULT_BASE_LIFTS = {
+    "Front Squat": 0,
+    "Back Squat": 0,
+    "Pause Front Squat": 0,
+    "Pause Back Squat": 0,
+}
 
 
 def load_data() -> Dict[str, Any]:
@@ -24,7 +31,7 @@ def load_data() -> Dict[str, Any]:
                 "age": row.get("age", 0),
                 "weight_kg": row.get("weight_kg", 0),
                 "gym": row.get("gym", "NA"),
-                "base_lifts": row.get("base_lifts") or {"Front Squat": 0, "Back Squat": 0},
+                "base_lifts": row.get("base_lifts") or DEFAULT_BASE_LIFTS.copy(),
                 "lifts": row.get("lifts") or {},
                 "created": row.get("created_at"),
             }
@@ -48,7 +55,7 @@ def save_data(data: Dict[str, Any]) -> None:
                     "age": user_data.get("age", 0),
                     "weight_kg": user_data.get("weight_kg", 0),
                     "gym": user_data.get("gym", "NA"),
-                    "base_lifts": user_data.get("base_lifts", {"Front Squat": 0, "Back Squat": 0}),
+                    "base_lifts": user_data.get("base_lifts", DEFAULT_BASE_LIFTS.copy()),
                     "lifts": user_data.get("lifts", {}),
                     "created_at": user_data.get("created", datetime.now().isoformat()),
                 }
@@ -70,7 +77,7 @@ def add_athlete(name: str, age: int, weight_kg: float, gym: str) -> bool:
                 "age": age,
                 "weight_kg": weight_kg,
                 "gym": gym,
-                "base_lifts": {"Front Squat": 0, "Back Squat": 0},
+                "base_lifts": DEFAULT_BASE_LIFTS.copy(),
                 "lifts": {},
                 "created_at": datetime.now().isoformat(),
             }
@@ -80,6 +87,7 @@ def add_athlete(name: str, age: int, weight_kg: float, gym: str) -> bool:
         print(f"Error adding athlete: {e}")
         return False
 
+
 def delete_athlete(name: str) -> bool:
     """Delete an athlete completely from the database."""
     try:
@@ -88,6 +96,8 @@ def delete_athlete(name: str) -> bool:
     except Exception as e:
         print(f"Error deleting athlete: {e}")
         return False
+
+
 def update_athlete(name: str, age: int, weight_kg: float, gym: str) -> bool:
     """Update an athlete's profile."""
     try:
@@ -123,6 +133,7 @@ def add_lift(name: str, lift_type: str, weight_kg: float, reps: int, lift_date: 
         print(f"Error adding lift: {e}")
         return False
 
+
 def set_base_lift(name: str, lift_type: str, weight_kg: float) -> bool:
     """Set a base lift for an athlete."""
     try:
@@ -131,7 +142,10 @@ def set_base_lift(name: str, lift_type: str, weight_kg: float) -> bool:
             return False
 
         if "base_lifts" not in data[name] or not isinstance(data[name]["base_lifts"], dict):
-            data[name]["base_lifts"] = {"Front Squat": 0, "Back Squat": 0}
+            data[name]["base_lifts"] = DEFAULT_BASE_LIFTS.copy()
+
+        if lift_type not in data[name]["base_lifts"]:
+            data[name]["base_lifts"][lift_type] = 0
 
         data[name]["base_lifts"][lift_type] = weight_kg
 
@@ -154,7 +168,7 @@ def delete_athlete_lifts(name: str) -> bool:
         client.table("athletes").update(
             {
                 "lifts": {},
-                "base_lifts": {"Front Squat": 0, "Back Squat": 0},
+                "base_lifts": DEFAULT_BASE_LIFTS.copy(),
                 "updated_at": datetime.now().isoformat(),
             }
         ).eq("name", name).execute()
