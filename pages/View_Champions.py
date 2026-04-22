@@ -245,13 +245,13 @@ else:
                     col1.metric("Baseline", f"{baseline}kg")
                     col2.metric("Current Max", f"{best_single}kg")
                     col3.metric("PR Improvement", f"{current_pr_improvement}kg")
-                    rep_map_text = "\n".join([f"{k} reps → {int(v*100)}%" for k, v in REP_PERCENT_MAP.items()])
+                    rep_map_text = "\n".join([f"{k} reps → {int(v*100)}% \n\n" for k, v in REP_PERCENT_MAP.items()])
                     col4.metric(
                         "Best Estimated 1RM",
                         f"{best_estimated_1rm:.1f}kg" if best_estimated_1rm is not None else "N/A",
                         help=(
                             "Estimated 1RM from any submitted lifts of 2 or more reps (excludes single PR attempts).\n\n"
-                            "Rep % model:\n"
+                            "Rep % model:\n\n"
                             f"{rep_map_text}"
                         )
                     )
