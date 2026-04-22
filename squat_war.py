@@ -20,7 +20,7 @@ from admin.supabase_client import (
     delete_athlete_lifts,
     delete_athlete,
     ARNOLD_DATE,
-    ALL_LIFTS,
+    ALL_LIFTS
 )
 
 st.set_page_config(
@@ -41,8 +41,8 @@ if "admin_logged_in" not in st.session_state:
     st.session_state.admin_logged_in = False
 if "just_submitted" not in st.session_state:
     st.session_state.just_submitted = False
-if "set_base_lift_mode" not in st.session_state:
-    st.session_state.set_base_lift_mode = False
+if "reset_base_lift" not in st.session_state:
+    st.session_state.reset_base_lift = False
 
 
 def has_valid_base_lift(user_data, lift_type):
@@ -411,21 +411,22 @@ elif mode == "Submit Lift":
     )
 
     if selected_user and selected_user in data:
+        if st.session_state.reset_base_lift:
+            st.session_state.set_base_lift_mode = False
+            st.session_state.reset_base_lift = False
+    
         st.sidebar.markdown("**Base Lifts (PR Baseline)**")
         st.sidebar.caption("What you were lifting PRE-Arnold or before PR attempts")
-        add_base_lift = st.sidebar.checkbox(
-            "Set Base Lift?",
-            key="set_base_lift_mode"
-        )
-
+        add_base_lift = st.sidebar.checkbox("Set Base Lift?", key="set_base_lift_mode")
+    
         if add_base_lift:
             base_lift_type = st.sidebar.selectbox("Lift Type:", ALL_LIFTS)
             base_weight = st.sidebar.number_input("Base Weight (kg):", min_value=20, max_value=500)
-
+    
             if st.sidebar.button("Set Base Lift", key="set_base"):
                 ok = set_base_lift(selected_user, base_lift_type, float(base_weight))
                 if ok:
-                    st.session_state.set_base_lift_mode = False
+                    st.session_state.reset_base_lift = True
                     st.session_state.just_submitted = True
                     st.rerun()
                 else:
@@ -434,12 +435,12 @@ elif mode == "Submit Lift":
             st.sidebar.markdown("**Lift Attempt**")
             lift_types = ALL_LIFTS
             selected_lift = st.sidebar.selectbox("Lift Type:", lift_types)
-
+    
             weight_kg = st.sidebar.number_input("Weight (kg):", min_value=20, max_value=500)
-            reps = st.sidebar.number_input("Reps:", min_value=1, max_value=10, value=1)
-
+            reps = st.sidebar.number_input("Reps:", min_value=1, max_value=20, value=1)
+    
             lift_date = st.sidebar.date_input("Date of Lift:", value=datetime.now().date())
-
+    
             if st.sidebar.button("Submit Lift", key="submit_lift"):
                 if lift_date < ARNOLD_DATE:
                     st.sidebar.error(
