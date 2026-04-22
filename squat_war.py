@@ -439,6 +439,8 @@ elif mode == "Submit Lift":
                     st.sidebar.error(
                         "❌ Invalid submission! Must be during or after Arnold (March 4, 2026)"
                     )
+                elif reps > 10:
+                    st.sidebar.error("while you may be strong, this app is not and cannot support greater than 10 reps")
                 elif selected_lift:
                     ok = add_lift(selected_user, selected_lift, float(weight_kg), int(reps), lift_date)
                     if ok:
