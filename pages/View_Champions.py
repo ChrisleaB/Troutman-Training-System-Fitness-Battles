@@ -29,7 +29,7 @@ REP_PERCENT_MAP = {
     5: 0.875,
     6: 0.86,
     8: 0.75,
-    10: 0.80,  # change to 0.70 if that is the target value later
+    10: 0.70,  # change to 0.70 if that is the target value later
 }
 
 
