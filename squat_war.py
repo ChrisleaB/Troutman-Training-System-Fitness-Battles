@@ -296,7 +296,7 @@ if st.session_state.get("current_user") and st.session_state.current_user not in
 with st.sidebar.expander("Login Champion", expanded=False):
     if st.session_state.champion_logged_in and st.session_state.current_user in users:
         st.success(f"Logged in as {st.session_state.current_user}")
-        st.caption("Your password is the same as your name/username.")
+        st.caption("Your password is the same as your name/username (include space between first & last).")
 
         if st.button("Logout Champion", key="champion_logout"):
             st.session_state.champion_logged_in = False
@@ -515,11 +515,11 @@ if st.session_state.just_submitted:
 st.title("⚔️ Ultimate Troutman Training Systems (and Associates) Squat War 2026")
 st.markdown(
     """
-    <p style='color:#CBA6F7; font-size:20px; margin-bottom:5px;'>
+    <p style='color:#CBA6F7; font-size:25px; margin-bottom:5px;'>
     Rules: All lifts POST-Arnold (March 4, 2026 onwards) are valid submissions
     </p>
 
-    <p style='color:#FFD700; font-size:20px;'>
+    <p style='color: #D4AF37;; font-size:15px;'>
     Added logins: if your name is below you have an account, see the sidebar for more details
     </p>
     """,
