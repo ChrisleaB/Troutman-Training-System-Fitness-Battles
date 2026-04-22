@@ -154,6 +154,11 @@ def build_history_frame(lift_history, baseline, body_weight):
 
 # ===== SIDEBAR =====
 st.sidebar.title("⚔️ Squat War Portal")
+st.sidebar.caption(
+    "If you previously signed up (can see your name on the leaderboard), "
+    "you already have a login account.\n\n"
+    "Username = your name\nPassword = your name"
+)
 st.sidebar.markdown("---")
 
 if st.sidebar.button("⬅ Back to Leaderboard"):
@@ -171,8 +176,12 @@ users = list(data.keys())
 if not users:
     st.warning("No athletes yet.")
 else:
-    selected_user = st.selectbox("Select User:", users)
-
+    default_user = st.session_state.get("current_user", users[0])
+    if default_user not in users:
+        default_user = users[0]
+    
+    selected_user = st.selectbox("Select User:", users, index=users.index(default_user))
+    
     if selected_user and selected_user in data:
         user_data = data[selected_user]
         body_weight = user_data.get("weight_kg", 0) or 1
