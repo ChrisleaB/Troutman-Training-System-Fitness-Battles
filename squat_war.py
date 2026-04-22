@@ -278,6 +278,11 @@ def build_overall_leader_history(data, all_lifts=ALL_LIFTS):
 
 # ===== SIDEBAR =====
 st.sidebar.title("⚔️ Squat War Portal")
+st.sidebar.caption(
+    "If you previously signed up (can see your name on the leaderboard), "
+    "you already have a login account.\n\n"
+    "Username = your name\nPassword = your name"
+)
 st.sidebar.markdown("---")
 
 data = load_data()
@@ -368,10 +373,16 @@ with st.sidebar.expander("Admin", expanded=False):
 
 st.sidebar.markdown("---")
 
-mode = st.sidebar.radio(
-    "Select Action:",
-    ["Enter the Arena, Champion", "Submit Lift", "Edit Champion Profile"],
-)
+if st.session_state.champion_logged_in:
+    mode = st.sidebar.radio(
+        "Select Action:",
+        ["Submit Lift", "Edit Champion Profile"],
+    )
+else:
+    mode = st.sidebar.radio(
+        "Select Action:",
+        ["Enter the Arena, Champion"],
+    )
 
 if mode == "Enter the Arena, Champion":
     st.sidebar.subheader("Add New Athlete")
@@ -503,6 +514,7 @@ if st.session_state.just_submitted:
 # ===== MAIN CONTENT =====
 st.title("⚔️ Ultimate Troutman Training Systems (and Associates) Squat War 2026")
 st.markdown("#### Rules: All lifts POST-Arnold (March 4, 2026 onwards) are valid submissions")
+st.markdown("##### LOGIN Note: Added logins, if your name is below you have an account, see the sidebar for more details")
 st.markdown("*For technical support, questions, or suggestions, contact Chris at boyd.christinalea@gmail.com*")
 st.markdown("---")
 
