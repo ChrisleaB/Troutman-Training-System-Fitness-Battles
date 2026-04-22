@@ -405,6 +405,7 @@ if mode == "Enter the Arena, Champion":
             if ok:
                 st.session_state.current_user = new_user
                 st.session_state.champion_logged_in = True
+                st.session_state.success_message = f"Champion {new_user} entered and logged in 🗡️"
                 st.session_state.just_submitted = True
                 st.rerun()
             else:
