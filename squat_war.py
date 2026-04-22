@@ -47,6 +47,8 @@ if "champion_logged_in" not in st.session_state:
     st.session_state.champion_logged_in = False
 if "current_user" not in st.session_state:
     st.session_state.current_user = None
+if "success_message" not in st.session_state:
+    st.session_state.success_message = ""
 
 
 def has_valid_base_lift(user_data, lift_type):
@@ -296,7 +298,7 @@ if st.session_state.get("current_user") and st.session_state.current_user not in
 with st.sidebar.expander("Login Champion", expanded=False):
     if st.session_state.champion_logged_in and st.session_state.current_user in users:
         st.success(f"Logged in as {st.session_state.current_user}")
-        st.caption("Your password is the same as your name/username (include space between first & last).")
+        st.caption("Your password is the same as your name/username.")
 
         if st.button("Logout Champion", key="champion_logout"):
             st.session_state.champion_logged_in = False
@@ -498,7 +500,9 @@ elif mode == "Submit Lift":
                         "❌ Invalid submission! Must be during or after Arnold (March 4, 2026)"
                     )
                 elif reps > 10:
-                    st.sidebar.error("while you may be strong, this app is not and cannot support greater than 10 reps")
+                    st.sidebar.error(
+                        "while you may be strong, this app is not and cannot support greater than 10 reps"
+                    )
                 elif selected_lift:
                     ok = add_lift(selected_user, selected_lift, float(weight_kg), int(reps), lift_date)
                     if ok:
@@ -509,7 +513,8 @@ elif mode == "Submit Lift":
 
 # Show popup if submission just happened
 if st.session_state.just_submitted:
-    st.success("✓ Submission saved")
+    st.success(st.session_state.success_message or "✓ Submission saved")
+    st.session_state.success_message = ""
     st.session_state.just_submitted = False
 
 # ===== MAIN CONTENT =====
@@ -520,11 +525,11 @@ st.markdown(
     Rules: All lifts POST-Arnold (March 4, 2026 onwards) are valid submissions
     </p>
 
-    <p style='color: #D4AF37;; font-size:15px;'>
+    <p style='color:#D4AF37; font-size:15px;'>
     Added logins: if your name is below you have an account, see the sidebar for more details
     </p>
     """,
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )
 st.markdown("*For technical support, questions, or suggestions, contact Chris at boyd.christinalea@gmail.com*")
 st.markdown("---")
