@@ -21,7 +21,7 @@ hide_pages = """
 st.markdown(hide_pages, unsafe_allow_html=True)
 
 # Rep -> percentage of 1RM that the athlete should be capable of lifting
-# (used for 2+ rep estimated 1RM calculations)
+# Used for 2+ rep estimated 1RM calculations.
 REP_PERCENT_MAP = {
     2: 0.95,
     3: 0.925,
@@ -29,13 +29,13 @@ REP_PERCENT_MAP = {
     5: 0.875,
     6: 0.86,
     8: 0.75,
-    10: 0.80,
+    10: 0.80,  # change to 0.70 if that is the target value later
 }
 
 
 def estimate_1rm_from_set(weight_kg: float, reps: int) -> float:
     """
-    Estimate 1RM from a set using your rep-percentage model.
+    Estimate 1RM from a set using the custom rep-percentage model.
     For reps not explicitly listed, fall back to Epley.
     """
     reps = int(reps)
@@ -47,7 +47,6 @@ def estimate_1rm_from_set(weight_kg: float, reps: int) -> float:
     if pct:
         return round(weight_kg / pct, 2)
 
-    # Fallback for other rep counts
     return round(weight_kg * (1 + reps / 30.0), 2)
 
 
@@ -57,7 +56,7 @@ def has_valid_base_lift(user_data, lift_type):
 
 def get_lifts_missing_baseline(user_data):
     """
-    Returns lift types where attempts exist but no base lift has been set.
+    Return lift types where attempts exist but no base lift has been set.
     """
     missing = []
     for lift_type in ALL_LIFTS:
@@ -88,11 +87,11 @@ def get_total_pr(data, user_name):
     total = 0
 
     for lift_type in ALL_LIFTS:
-        if base_lifts.get(lift_type, 0) <= 0:
+        if not has_valid_base_lift(user, lift_type):
             continue
 
-        best_single = get_best_single_attempt(user, lift_type)
         baseline = base_lifts.get(lift_type, 0)
+        best_single = get_best_single_attempt(user, lift_type)
 
         if best_single is None:
             contribution = 0
@@ -117,16 +116,17 @@ def build_history_frame(lift_history, baseline, body_weight):
         return history_df
 
     history_df["date"] = pd.to_datetime(history_df["date"], errors="coerce")
+
     if "logged_at" in history_df.columns:
         history_df["logged_at"] = pd.to_datetime(history_df["logged_at"], utc=True, errors="coerce")
     else:
-        history_df["logged_at"] = history_df["date"]
+        history_df["logged_at"] = pd.to_datetime(history_df["date"], utc=True, errors="coerce")
 
     history_df = history_df.dropna(subset=["date"]).copy()
     history_df["reps"] = history_df["reps"].fillna(1).astype(int)
     history_df["weight_kg"] = history_df["weight_kg"].astype(float)
 
-    # Sort by the actual lift date first, then logged_at to make same-day ordering stable
+    # Stable ordering for same-day attempts
     history_df = history_df.sort_values(["date", "logged_at"], kind="mergesort").reset_index(drop=True)
 
     history_df["Body Weight Ratio"] = round(history_df["weight_kg"] / body_weight, 2)
@@ -235,8 +235,12 @@ else:
 
                     best_single = single_df["weight_kg"].max() if not single_df.empty else baseline
                     current_pr_improvement = max(0, best_single - baseline)
-                    best_estimated_1rm = history_df["attempt_1rm"].max()
-                    best_estimated_ratio = round(best_estimated_1rm / body_weight, 2)
+
+                    best_estimated_1rm = multi_df["attempt_1rm"].max() if not multi_df.empty else None
+                    best_estimated_ratio = (
+                        round(best_estimated_1rm / body_weight, 2) if best_estimated_1rm is not None else None
+                    )
+
                     min_weight = history_df["weight_kg"].min()
                     total_attempts = len(history_df)
 
@@ -246,12 +250,18 @@ else:
                     col1.metric("Baseline", f"{baseline}kg")
                     col2.metric("Current 1-Rep PR", f"{best_single}kg")
                     col3.metric("PR Improvement", f"{current_pr_improvement}kg")
-                    col4.metric("Best Estimated 1RM", f"{best_estimated_1rm}kg")
+                    col4.metric(
+                        "Best 2+ Rep Estimated 1RM",
+                        f"{best_estimated_1rm:.1f}kg" if best_estimated_1rm is not None else "N/A",
+                    )
                     col5.metric("Total Attempts", total_attempts)
 
                     col6, col7 = st.columns(2)
                     col6.metric("Min Lift", f"{min_weight}kg")
-                    col7.metric("Best Estimated 1RM Ratio", f"{best_estimated_ratio:.2f}x BW")
+                    col7.metric(
+                        "Best 2+ Rep 1RM Ratio",
+                        f"{best_estimated_ratio:.2f}x BW" if best_estimated_ratio is not None else "N/A",
+                    )
 
                     st.markdown("---")
 
@@ -259,9 +269,7 @@ else:
                     st.write(f"### {selected_lift_history} Single-Rep Attempts")
                     if not single_df.empty:
                         st.dataframe(
-                            single_df[
-                                ["date", "weight_kg", "reps", "Body Weight Ratio"]
-                            ],
+                            single_df[["date", "weight_kg", "reps", "Body Weight Ratio"]],
                             use_container_width=True,
                         )
 
