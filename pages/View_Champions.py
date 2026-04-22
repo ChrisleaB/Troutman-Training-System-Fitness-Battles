@@ -29,7 +29,7 @@ REP_PERCENT_MAP = {
     5: 0.875,
     6: 0.86,
     8: 0.75,
-    10: 0.70,  # change to 0.70 if that is the target value later
+    10: 0.70,  
 }
 
 
@@ -237,32 +237,25 @@ else:
                     current_pr_improvement = max(0, best_single - baseline)
 
                     best_estimated_1rm = multi_df["attempt_1rm"].max() if not multi_df.empty else None
-                    best_estimated_ratio = (
-                        round(best_estimated_1rm / body_weight, 2) if best_estimated_1rm is not None else None
-                    )
-
-                    min_weight = history_df["weight_kg"].min()
                     total_attempts = len(history_df)
 
                     st.write(f"### {selected_lift_history} Stats")
 
                     col1, col2, col3, col4, col5 = st.columns(5)
                     col1.metric("Baseline", f"{baseline}kg")
-                    col2.metric("Current 1-Rep PR", f"{best_single}kg")
+                    col2.metric("Current Max", f"{best_single}kg")
                     col3.metric("PR Improvement", f"{current_pr_improvement}kg")
+                    rep_map_text = "\n".join([f"{k} reps → {int(v*100)}%" for k, v in REP_PERCENT_MAP.items()])
                     col4.metric(
-                        "Best 2+ Rep Estimated 1RM",
+                        "Best Estimated 1RM",
                         f"{best_estimated_1rm:.1f}kg" if best_estimated_1rm is not None else "N/A",
+                        help=(
+                            "Estimated 1RM from any submitted lifts of 2 or more reps (excludes single PR attempts).\n\n"
+                            "Rep % model:\n"
+                            f"{rep_map_text}"
+                        )
                     )
                     col5.metric("Total Attempts", total_attempts)
-
-                    col6, col7 = st.columns(2)
-                    col6.metric("Min Lift", f"{min_weight}kg")
-                    col7.metric(
-                        "Best 2+ Rep 1RM Ratio",
-                        f"{best_estimated_ratio:.2f}x BW" if best_estimated_ratio is not None else "N/A",
-                    )
-
                     st.markdown("---")
 
                     # ===== SINGLE-REP ATTEMPTS =====
