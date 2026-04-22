@@ -20,7 +20,7 @@ from admin.supabase_client import (
     delete_athlete_lifts,
     delete_athlete,
     ARNOLD_DATE,
-    ALL_LIFTS
+    ALL_LIFTS,
 )
 
 st.set_page_config(
@@ -43,6 +43,10 @@ if "just_submitted" not in st.session_state:
     st.session_state.just_submitted = False
 if "reset_base_lift" not in st.session_state:
     st.session_state.reset_base_lift = False
+if "champion_logged_in" not in st.session_state:
+    st.session_state.champion_logged_in = False
+if "current_user" not in st.session_state:
+    st.session_state.current_user = None
 
 
 def has_valid_base_lift(user_data, lift_type):
@@ -274,10 +278,46 @@ def build_overall_leader_history(data, all_lifts=ALL_LIFTS):
 
 # ===== SIDEBAR =====
 st.sidebar.title("⚔️ Squat War Portal")
+st.sidebar.caption(
+    "If you previously signed up (can see your name on the leaderboard), "
+    "you already have a login account.\n\n"
+    "Username = your name\nPassword = your name"
+)
 st.sidebar.markdown("---")
 
 data = load_data()
 users = list(data.keys())
+
+if st.session_state.get("current_user") and st.session_state.current_user not in users:
+    st.session_state.current_user = None
+    st.session_state.champion_logged_in = False
+
+# Champion login
+with st.sidebar.expander("Login Champion", expanded=False):
+    if st.session_state.champion_logged_in and st.session_state.current_user in users:
+        st.success(f"Logged in as {st.session_state.current_user}")
+        st.caption("Your password is the same as your name/username.")
+
+        if st.button("Logout Champion", key="champion_logout"):
+            st.session_state.champion_logged_in = False
+            st.session_state.current_user = None
+            st.rerun()
+    else:
+        login_user = st.selectbox(
+            "Select your name:",
+            users if users else ["No users yet"],
+            key="champion_login_user",
+        )
+        login_password = st.text_input("Password:", type="password", key="champion_login_pass")
+        st.caption("Your password is the same as your name/username.")
+
+        if st.button("Login Champion", key="champion_login_btn"):
+            if login_user in data and login_password == login_user:
+                st.session_state.current_user = login_user
+                st.session_state.champion_logged_in = True
+                st.rerun()
+            else:
+                st.error("Incorrect name or password.")
 
 # Page navigation
 if st.sidebar.button("View Champions"):
@@ -333,10 +373,16 @@ with st.sidebar.expander("Admin", expanded=False):
 
 st.sidebar.markdown("---")
 
-mode = st.sidebar.radio(
-    "Select Action:",
-    ["Enter the Arena, Champion", "Submit Lift", "Edit Champion Profile"],
-)
+if st.session_state.champion_logged_in:
+    mode = st.sidebar.radio(
+        "Select Action:",
+        ["Submit Lift", "Edit Champion Profile"],
+    )
+else:
+    mode = st.sidebar.radio(
+        "Select Action:",
+        ["Enter the Arena, Champion"],
+    )
 
 if mode == "Enter the Arena, Champion":
     st.sidebar.subheader("Add New Athlete")
@@ -357,6 +403,8 @@ if mode == "Enter the Arena, Champion":
         if new_user and new_user not in data:
             ok = add_athlete(new_user, int(new_age), float(new_weight), new_gym)
             if ok:
+                st.session_state.current_user = new_user
+                st.session_state.champion_logged_in = True
                 st.session_state.just_submitted = True
                 st.rerun()
             else:
@@ -367,12 +415,13 @@ if mode == "Enter the Arena, Champion":
 elif mode == "Edit Champion Profile":
     st.sidebar.subheader("Edit Your Profile")
 
-    edit_user = st.sidebar.selectbox("Select Your Name:", users if users else ["No users yet"])
-
-    if edit_user and edit_user in data:
+    if not st.session_state.champion_logged_in or not st.session_state.current_user:
+        st.sidebar.info("Log in as a Champion to edit your own profile.")
+    else:
+        edit_user = st.session_state.current_user
         user_data = data[edit_user]
 
-        st.sidebar.markdown("**Edit Information**")
+        st.sidebar.markdown(f"**Editing: {edit_user}**")
         new_age = st.sidebar.number_input(
             "Age:", min_value=15, max_value=80, value=user_data.get("age", 0)
         )
@@ -406,23 +455,24 @@ elif mode == "Edit Champion Profile":
 elif mode == "Submit Lift":
     st.sidebar.subheader("Log Your Lift")
 
-    selected_user = st.sidebar.selectbox(
-        "Select Your Name:", users if users else ["No users yet"]
-    )
+    if not st.session_state.champion_logged_in or not st.session_state.current_user:
+        st.sidebar.info("Log in as a Champion to submit lifts for yourself.")
+    else:
+        selected_user = st.session_state.current_user
+        st.sidebar.markdown(f"**Submitting as: {selected_user}**")
 
-    if selected_user and selected_user in data:
         if st.session_state.reset_base_lift:
             st.session_state.set_base_lift_mode = False
             st.session_state.reset_base_lift = False
-    
+
         st.sidebar.markdown("**Base Lifts (PR Baseline)**")
         st.sidebar.caption("What you were lifting PRE-Arnold or before PR attempts")
         add_base_lift = st.sidebar.checkbox("Set Base Lift?", key="set_base_lift_mode")
-    
+
         if add_base_lift:
             base_lift_type = st.sidebar.selectbox("Lift Type:", ALL_LIFTS)
             base_weight = st.sidebar.number_input("Base Weight (kg):", min_value=20, max_value=500)
-    
+
             if st.sidebar.button("Set Base Lift", key="set_base"):
                 ok = set_base_lift(selected_user, base_lift_type, float(base_weight))
                 if ok:
@@ -435,12 +485,12 @@ elif mode == "Submit Lift":
             st.sidebar.markdown("**Lift Attempt**")
             lift_types = ALL_LIFTS
             selected_lift = st.sidebar.selectbox("Lift Type:", lift_types)
-    
+
             weight_kg = st.sidebar.number_input("Weight (kg):", min_value=20, max_value=500)
             reps = st.sidebar.number_input("Reps:", min_value=1, max_value=20, value=1)
-    
+
             lift_date = st.sidebar.date_input("Date of Lift:", value=datetime.now().date())
-    
+
             if st.sidebar.button("Submit Lift", key="submit_lift"):
                 if lift_date < ARNOLD_DATE:
                     st.sidebar.error(
@@ -464,6 +514,7 @@ if st.session_state.just_submitted:
 # ===== MAIN CONTENT =====
 st.title("⚔️ Ultimate Troutman Training Systems (and Associates) Squat War 2026")
 st.markdown("#### Rules: All lifts POST-Arnold (March 4, 2026 onwards) are valid submissions")
+st.markdown("##### LOGIN Note: Added logins, if your name is below you have an account, see the sidebar for more details")
 st.markdown("*For technical support, questions, or suggestions, contact Chris at boyd.christinalea@gmail.com*")
 st.markdown("---")
 
