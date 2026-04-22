@@ -118,6 +118,9 @@ def update_athlete(name: str, age: int, weight_kg: float, gym: str) -> bool:
 def add_lift(name: str, lift_type: str, weight_kg: float, reps: int, lift_date: date) -> bool:
     """Add a lift for an athlete."""
     try:
+        if reps > 10:
+            raise ValueError("while you may be strong, this app is not and cannot support greater than 10 reps")
+
         client.rpc(
             "append_lift",
             {
@@ -129,6 +132,7 @@ def add_lift(name: str, lift_type: str, weight_kg: float, reps: int, lift_date: 
             },
         ).execute()
         return True
+
     except Exception as e:
         print(f"Error adding lift: {e}")
         return False
