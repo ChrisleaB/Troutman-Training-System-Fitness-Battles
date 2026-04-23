@@ -298,7 +298,7 @@ if st.session_state.get("current_user") and st.session_state.current_user not in
 with st.sidebar.expander("Login Champion", expanded=False):
     if st.session_state.champion_logged_in and st.session_state.current_user in users:
         st.success(f"Logged in as {st.session_state.current_user}")
-        st.caption("Your password is the same as your name/username.")
+        st.caption("Your password is the same as your name/username (include the space).")
 
         if st.button("Logout Champion", key="champion_logout"):
             st.session_state.champion_logged_in = False
