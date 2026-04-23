@@ -536,3 +536,124 @@ elif mode == "submit":
                         st.rerun()
                     else:
                         st.sidebar.error("Could not submit lift.")
+# ===== MAIN CONTENT =====
+st.title("⚔️ Ultimate Troutman Training Systems (and Associates) Squat War 2026")
+st.markdown(
+    """
+    <p style='color:#CBA6F7; font-size:25px; margin-bottom:5px;'>
+    Rules: All lifts POST-Arnold (March 4, 2026 onwards) are valid submissions
+    </p>
+
+    <p style='color:#D4AF37; font-size:15px;'>
+    Added logins: if your name is below you have an account, see the sidebar for more details
+    </p>
+    """,
+    unsafe_allow_html=True,
+)
+st.markdown("*For technical support, questions, or suggestions, contact Chris at boyd.christinalea@gmail.com*")
+st.markdown("---")
+
+if not users:
+    st.warning("No athletes yet. Add athletes in the sidebar!")
+else:
+    # ===== OVERALL CHAMPION =====
+    overall_df = build_overall_leaderboard(data)
+
+    st.subheader("REIGNING CHAMPIONS")
+
+    if not overall_df.empty:
+        st.dataframe(overall_df, use_container_width=True)
+
+        if overall_df.iloc[0]["Total PR"] > 0:
+            st.success(
+                f" **BEARER OF ABSOLUTE SUPREMACY: {overall_df.iloc[0]['Name']}** "
+                f"with {overall_df.iloc[0]['Total PR']}kg total PR improvement!"
+            )
+        else:
+            st.info("No PRs set yet!")
+
+    # ===== OVERALL LEADER HISTORY =====
+    st.markdown("---")
+    st.subheader("Overall Leader History")
+
+    history_df = build_overall_leader_history(data)
+
+    if not history_df.empty:
+        history_df = history_df.sort_values("logged_at").reset_index(drop=True)
+        history_df["logged_at_str"] = history_df["logged_at"].dt.strftime("%Y-%m-%d %H:%M UTC")
+
+        history_display = history_df[
+            ["logged_at_str", "leader", "total_pr", "trigger_athlete", "trigger_lift", "trigger_weight"]
+        ].copy()
+        history_display.columns = [
+            "Logged At",
+            "Leader",
+            "Total PR",
+            "Trigger Athlete",
+            "Trigger Lift",
+            "Trigger Weight (kg)",
+        ]
+
+        fig = go.Figure()
+        fig.add_trace(
+            go.Scatter(
+                x=history_df["logged_at"],
+                y=history_df["total_pr"],
+                mode="lines+markers+text",
+                text=history_df["leader"],
+                textposition="top center",
+                hovertemplate=(
+                    "Logged At: %{x|%Y-%m-%d %H:%M}<br>"
+                    "Leader: %{text}<br>"
+                    "Total PR: %{y}kg<extra></extra>"
+                ),
+            )
+        )
+        fig.update_layout(
+            title="History of the #1 Overall Leader",
+            xaxis_title="Logged At",
+            yaxis_title="Leader's Total PR (kg)",
+            showlegend=False,
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+        st.dataframe(history_display, use_container_width=True)
+    else:
+        st.info("No dated lifts yet, so there is no leaderboard history to plot.")
+
+    # ===== INDIVIDUAL LIFT LEADERBOARDS =====
+    st.markdown("---")
+    st.subheader("Live Leaderboards")
+
+    lift_tabs = st.tabs(ALL_LIFTS)
+
+    for tab, lift in zip(lift_tabs, ALL_LIFTS):
+        with tab:
+            st.markdown(f"### {lift} Leaderboard")
+
+            lb_df = build_lift_leaderboard(data, lift)
+
+            if not lb_df.empty:
+                st.dataframe(lb_df, use_container_width=True)
+
+                top_pr = lb_df.iloc[0]["Weight (kg)"]
+                st.info(
+                    f"**Current {lift} PR: {top_pr}kg** "
+                    f"(set by {lb_df.iloc[0]['Name']} on {lb_df.iloc[0]['Date']})"
+                )
+
+                fig = px.bar(
+                    lb_df,
+                    x="Name",
+                    y="Weight (kg)",
+                    title=f"{lift} - Max Weights",
+                    color="Ratio (Lift/BW)",
+                    color_continuous_scale="Viridis",
+                    hover_data=["Gym Affiliation", "Ratio (Lift/BW)", "Date"],
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info(f"No athletes with a valid base lift and 1-rep attempt for {lift} yet.")
+
+st.markdown("---")
+st.caption("Ultimate Troutman Training System's Squat War 2026 - May the gains be ever in your favor ⚔️")
