@@ -308,7 +308,7 @@ st.sidebar.caption(
 st.sidebar.markdown("---")
 
 if not st.session_state.champion_logged_in:
-    with st.sidebar.expander("⚔️ Enter the Arena, Champion"):
+    with st.sidebar.expander("Enter the Arena Champion"):
         st.sidebar.subheader("Add New Athlete")
 
         new_user = st.text_input("Athlete Name:")
