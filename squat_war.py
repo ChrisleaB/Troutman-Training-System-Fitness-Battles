@@ -280,14 +280,7 @@ def build_overall_leader_history(data, all_lifts=ALL_LIFTS):
     return pd.DataFrame(history)
 
 
-# ===== SIDEBAR =====
-st.sidebar.title("⚔️ Squat War Portal")
-st.sidebar.caption(
-    "If you previously signed up (can see your name on the leaderboard), "
-    "you already have a login account. Username = your name. Password = your name."
-)
-st.sidebar.markdown("---")
-
+# ===== DATA =====
 data = load_data()
 users = list(data.keys())
 
@@ -299,11 +292,20 @@ if st.session_state.get("current_user") and st.session_state.current_user not in
 
 # Keep mode valid for login state
 if st.session_state.champion_logged_in:
-    if st.session_state.mode not in ("submit", "edit"):
-        st.session_state.mode = "submit"
+    if st.session_state.mode not in ("submit", "edit", "home"):
+        st.session_state.mode = "home"
 else:
     if st.session_state.mode in ("submit", "edit"):
         st.session_state.mode = "home"
+
+
+# ===== SIDEBAR =====
+st.sidebar.title("⚔️ Squat War Portal")
+st.sidebar.caption(
+    "If you previously signed up (can see your name on the leaderboard), "
+    "you already have a login account. Username = your name. Password = your name."
+)
+st.sidebar.markdown("---")
 
 # Enter the Arena button only for logged-out users
 if not st.session_state.champion_logged_in:
@@ -335,7 +337,7 @@ with st.sidebar.expander("Login Champion", expanded=False):
             if login_user in data and login_password == login_user:
                 st.session_state.current_user = login_user
                 st.session_state.champion_logged_in = True
-                st.session_state.mode = "submit"
+                st.session_state.mode = "home"
                 st.rerun()
             else:
                 st.error("Incorrect name or password.")
@@ -409,17 +411,138 @@ if st.session_state.champion_logged_in:
         st.rerun()
 
 mode = st.session_state.mode
+
+# ===== MODE-DRIVEN SIDEBAR FORMS =====
 if mode == "enter":
     st.sidebar.subheader("Add New Athlete")
-    # your add athlete form here
+    new_user = st.sidebar.text_input("Athlete Name:")
+    new_age = st.sidebar.number_input("Age:", min_value=15, max_value=80)
+    new_weight = st.sidebar.number_input("Body Weight (kg):", min_value=40, max_value=200)
+
+    gym_options = ["Troutman Training Systems", "NA", "Other"]
+    selected_gym = st.sidebar.selectbox("Gym Affiliation:", gym_options)
+    st.sidebar.caption("(if no affiliation --> NA)")
+
+    if selected_gym == "Other":
+        new_gym = st.sidebar.text_input("Enter gym name:")
+    else:
+        new_gym = selected_gym
+
+    if st.sidebar.button("Add", key="add_athlete"):
+        if new_user and new_user not in data:
+            ok = add_athlete(new_user, int(new_age), float(new_weight), new_gym)
+            if ok:
+                st.session_state.current_user = new_user
+                st.session_state.champion_logged_in = True
+                st.session_state.mode = "home"
+                st.session_state.success_message = f"Champion {new_user} entered and logged in 🗡️"
+                st.session_state.just_submitted = True
+                st.rerun()
+            else:
+                st.sidebar.error("Could not add athlete.")
+        elif new_user in data:
+            st.sidebar.error(f"✗ {new_user} already exists!")
 
 elif mode == "edit":
     st.sidebar.subheader("Edit Your Profile")
-    # your edit form here
+
+    if not st.session_state.champion_logged_in or not st.session_state.current_user:
+        st.sidebar.info("Log in as a Champion to edit your own profile.")
+    else:
+        edit_user = st.session_state.current_user
+        user_data = data[edit_user]
+
+        st.sidebar.markdown(f"**Editing: {edit_user}**")
+        new_age = st.sidebar.number_input(
+            "Age:", min_value=15, max_value=80, value=user_data.get("age", 0)
+        )
+        new_weight = st.sidebar.number_input(
+            "Body Weight (kg):", min_value=40, max_value=200, value=user_data.get("weight_kg", 0)
+        )
+
+        gym_options = ["Troutman Training Systems", "NA", "Other"]
+        current_gym = user_data.get("gym", "NA")
+        default_gym = current_gym if current_gym in gym_options else "Other"
+        selected_gym = st.sidebar.selectbox(
+            "Gym Affiliation:", gym_options, index=gym_options.index(default_gym)
+        )
+
+        if selected_gym == "Other":
+            new_gym = st.sidebar.text_input(
+                "Enter gym name:",
+                value=current_gym if current_gym not in gym_options else "",
+            )
+        else:
+            new_gym = selected_gym
+
+        if st.sidebar.button("Save Changes", key="save_profile"):
+            ok = update_athlete(edit_user, int(new_age), float(new_weight), new_gym)
+            if ok:
+                st.session_state.just_submitted = True
+                st.rerun()
+            else:
+                st.sidebar.error("Could not update athlete.")
 
 elif mode == "submit":
     st.sidebar.subheader("Log Your Lift")
-    # your submit lift form here
+
+    if not st.session_state.champion_logged_in or not st.session_state.current_user:
+        st.sidebar.info("Log in as a Champion to submit lifts for yourself.")
+    else:
+        selected_user = st.session_state.current_user
+        st.sidebar.markdown(f"**Submitting as: {selected_user}**")
+
+        if st.session_state.reset_base_lift:
+            st.session_state.set_base_lift_mode = False
+            st.session_state.reset_base_lift = False
+
+        st.sidebar.markdown("**Base Lifts (PR Baseline)**")
+        st.sidebar.caption("What you were lifting PRE-Arnold or before PR attempts")
+        add_base_lift = st.sidebar.checkbox("Set Base Lift?", key="set_base_lift_mode")
+
+        if add_base_lift:
+            base_lift_type = st.sidebar.selectbox("Lift Type:", ALL_LIFTS)
+            base_weight = st.sidebar.number_input("Base Weight (kg):", min_value=20, max_value=500)
+
+            if st.sidebar.button("Set Base Lift", key="set_base"):
+                ok = set_base_lift(selected_user, base_lift_type, float(base_weight))
+                if ok:
+                    st.session_state.reset_base_lift = True
+                    st.session_state.just_submitted = True
+                    st.rerun()
+                else:
+                    st.sidebar.error("Could not set base lift.")
+        else:
+            st.sidebar.markdown("**Lift Attempt**")
+            selected_lift = st.sidebar.selectbox("Lift Type:", ALL_LIFTS)
+
+            weight_kg = st.sidebar.number_input("Weight (kg):", min_value=20, max_value=500)
+            reps = st.sidebar.number_input("Reps:", min_value=1, max_value=20, value=1)
+
+            lift_date = st.sidebar.date_input("Date of Lift:", value=datetime.now().date())
+
+            if st.sidebar.button("Submit Lift", key="submit_lift"):
+                if lift_date < ARNOLD_DATE:
+                    st.sidebar.error(
+                        "❌ Invalid submission! Must be during or after Arnold (March 4, 2026)"
+                    )
+                elif reps > 10:
+                    st.sidebar.error(
+                        "while you may be strong, this app is not and cannot support greater than 10 reps"
+                    )
+                elif selected_lift:
+                    ok = add_lift(selected_user, selected_lift, float(weight_kg), int(reps), lift_date)
+                    if ok:
+                        st.session_state.just_submitted = True
+                        st.rerun()
+                    else:
+                        st.sidebar.error("Could not submit lift.")
+
+# Show popup if submission just happened
+if st.session_state.just_submitted:
+    st.success(st.session_state.success_message or "✓ Submission saved")
+    st.session_state.success_message = ""
+    st.session_state.just_submitted = False
 
 # ===== MAIN CONTENT =====
 st.title("⚔️ Ultimate Troutman Training Systems (and Associates) Squat War 2026")
