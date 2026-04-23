@@ -307,11 +307,36 @@ st.sidebar.caption(
 )
 st.sidebar.markdown("---")
 
-# Enter the Arena button only for logged-out users
 if not st.session_state.champion_logged_in:
-    if st.sidebar.button("Enter the Arena, Champion", key="nav_enter"):
-        st.session_state.mode = "enter"
-        st.rerun()
+    with st.sidebar.expander("⚔️ Enter the Arena, Champion"):
+        st.sidebar.subheader("Add New Athlete")
+
+        new_user = st.text_input("Athlete Name:")
+        new_age = st.number_input("Age:", min_value=15, max_value=80)
+        new_weight = st.number_input("Body Weight (kg):", min_value=40, max_value=200)
+
+        gym_options = ["Troutman Training Systems", "NA", "Other"]
+        selected_gym = st.selectbox("Gym Affiliation:", gym_options)
+        st.caption("(if no affiliation --> NA)")
+
+        if selected_gym == "Other":
+            new_gym = st.text_input("Enter gym name:")
+        else:
+            new_gym = selected_gym
+
+        if st.button("Add", key="add_athlete"):
+            if new_user and new_user not in data:
+                ok = add_athlete(new_user, int(new_age), float(new_weight), new_gym)
+                if ok:
+                    st.session_state.current_user = new_user
+                    st.session_state.champion_logged_in = True
+                    st.session_state.success_message = f"Champion {new_user} entered and logged in 🗡️"
+                    st.session_state.just_submitted = True
+                    st.rerun()
+                else:
+                    st.error("Could not add athlete.")
+            elif new_user in data:
+                st.error(f"✗ {new_user} already exists!")
     
 # Champion login
 with st.sidebar.expander("Login Champion", expanded=False):
@@ -409,37 +434,7 @@ if st.session_state.champion_logged_in:
 mode = st.session_state.mode
 
 # ===== MODE-DRIVEN SIDEBAR FORMS =====
-if mode == "enter":
-    st.sidebar.subheader("Add New Athlete")
-    new_user = st.sidebar.text_input("Athlete Name:")
-    new_age = st.sidebar.number_input("Age:", min_value=15, max_value=80)
-    new_weight = st.sidebar.number_input("Body Weight (kg):", min_value=40, max_value=200)
-
-    gym_options = ["Troutman Training Systems", "NA", "Other"]
-    selected_gym = st.sidebar.selectbox("Gym Affiliation:", gym_options)
-    st.sidebar.caption("(if no affiliation --> NA)")
-
-    if selected_gym == "Other":
-        new_gym = st.sidebar.text_input("Enter gym name:")
-    else:
-        new_gym = selected_gym
-
-    if st.sidebar.button("Add", key="add_athlete"):
-        if new_user and new_user not in data:
-            ok = add_athlete(new_user, int(new_age), float(new_weight), new_gym)
-            if ok:
-                st.session_state.current_user = new_user
-                st.session_state.champion_logged_in = True
-                st.session_state.mode = "home"
-                st.session_state.success_message = f"Champion {new_user} entered and logged in 🗡️"
-                st.session_state.just_submitted = True
-                st.rerun()
-            else:
-                st.sidebar.error("Could not add athlete.")
-        elif new_user in data:
-            st.sidebar.error(f"✗ {new_user} already exists!")
-
-elif mode == "edit":
+if mode == "edit":
     st.sidebar.subheader("Edit Your Profile")
 
     if not st.session_state.champion_logged_in or not st.session_state.current_user:
