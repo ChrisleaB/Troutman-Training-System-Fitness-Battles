@@ -154,11 +154,6 @@ def build_history_frame(lift_history, baseline, body_weight):
 
 # ===== SIDEBAR =====
 st.sidebar.title("⚔️ Squat War Portal")
-st.sidebar.caption(
-    "If you previously signed up (can see your name on the leaderboard), "
-    "you already have a login account.\n\n"
-    "Username = your name\nPassword = your name"
-)
 st.sidebar.markdown("---")
 
 if st.sidebar.button("⬅ Back to Leaderboard"):
