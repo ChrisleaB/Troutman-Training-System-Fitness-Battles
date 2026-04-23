@@ -291,9 +291,26 @@ st.sidebar.markdown("---")
 data = load_data()
 users = list(data.keys())
 
+if "mode" not in st.session_state:
+    st.session_state.mode = "home"
+
 if st.session_state.get("current_user") and st.session_state.current_user not in users:
     st.session_state.current_user = None
     st.session_state.champion_logged_in = False
+    st.session_state.mode = "home"
+
+if st.session_state.champion_logged_in:
+    if st.session_state.mode not in ("submit", "edit"):
+        st.session_state.mode = "submit"
+else:
+    if st.session_state.mode in ("submit", "edit"):
+        st.session_state.mode = "home"
+
+# Enter the Arena button only for logged-out users
+if not st.session_state.champion_logged_in:
+    if st.sidebar.button("Enter the Arena, Champion", key="nav_enter"):
+        st.session_state.mode = "enter"
+        st.rerun()
 
 # Champion login
 with st.sidebar.expander("Login Champion", expanded=False):
@@ -304,7 +321,7 @@ with st.sidebar.expander("Login Champion", expanded=False):
         if st.button("Logout Champion", key="champion_logout"):
             st.session_state.champion_logged_in = False
             st.session_state.current_user = None
-            st.session_state.mode = "enter"
+            st.session_state.mode = "home"
             st.rerun()
     else:
         login_user = st.selectbox(
@@ -324,21 +341,8 @@ with st.sidebar.expander("Login Champion", expanded=False):
             else:
                 st.error("Incorrect name or password.")
 
-# Action buttons
-st.sidebar.markdown("### Actions")
-
-if st.session_state.champion_logged_in:
-    if st.sidebar.button("Submit Lift", key="nav_submit"):
-        st.session_state.mode = "submit"
-    st.sidebar.markdown("---")
-    if st.sidebar.button("Edit Champion Profile", key="nav_edit"):
-        st.session_state.mode = "edit"
-else:
-    if st.sidebar.button("Enter the Arena, Champion", key="nav_enter"):
-        st.session_state.mode = "enter"
-
 # Page navigation
-if st.sidebar.button("View Champions"):
+if st.sidebar.button("View Champions", key="view_champions_btn"):
     st.switch_page("pages/View_Champions.py")
 
 # Admin login
@@ -391,16 +395,23 @@ with st.sidebar.expander("Admin", expanded=False):
 
 st.sidebar.markdown("---")
 
-# Keep mode valid for login state
+# Action buttons
 if st.session_state.champion_logged_in:
-    if st.session_state.mode not in ("submit", "edit"):
+    st.sidebar.markdown("### Actions")
+
+    if st.sidebar.button("Submit Lift", key="nav_submit"):
         st.session_state.mode = "submit"
-else:
-    st.session_state.mode = "enter"
+        st.rerun()
+
+    st.sidebar.markdown("---")
+
+    if st.sidebar.button("Edit Champion Profile", key="nav_edit"):
+        st.session_state.mode = "edit"
+        st.rerun()
 
 mode = st.session_state.mode
 
-if mode == "Enter the Arena, Champion" or mode == "enter":
+if mode == "enter":
     st.sidebar.subheader("Add New Athlete")
     new_user = st.sidebar.text_input("Athlete Name:")
     new_age = st.sidebar.number_input("Age:", min_value=15, max_value=80)
@@ -430,7 +441,7 @@ if mode == "Enter the Arena, Champion" or mode == "enter":
         elif new_user in data:
             st.sidebar.error(f"✗ {new_user} already exists!")
 
-elif mode == "Edit Champion Profile" or mode == "edit":
+elif mode == "edit":
     st.sidebar.subheader("Edit Your Profile")
 
     if not st.session_state.champion_logged_in or not st.session_state.current_user:
@@ -470,7 +481,7 @@ elif mode == "Edit Champion Profile" or mode == "edit":
             else:
                 st.sidebar.error("Could not update athlete.")
 
-elif mode == "Submit Lift" or mode == "submit":
+elif mode == "submit":
     st.sidebar.subheader("Log Your Lift")
 
     if not st.session_state.champion_logged_in or not st.session_state.current_user:
@@ -525,131 +536,3 @@ elif mode == "Submit Lift" or mode == "submit":
                         st.rerun()
                     else:
                         st.sidebar.error("Could not submit lift.")
-
-# Show popup if submission just happened
-if st.session_state.just_submitted:
-    st.success(st.session_state.success_message or "✓ Submission saved")
-    st.session_state.success_message = ""
-    st.session_state.just_submitted = False
-
-# ===== MAIN CONTENT =====
-st.title("⚔️ Ultimate Troutman Training Systems (and Associates) Squat War 2026")
-st.markdown(
-    """
-    <p style='color:#CBA6F7; font-size:25px; margin-bottom:5px;'>
-    Rules: All lifts POST-Arnold (March 4, 2026 onwards) are valid submissions
-    </p>
-
-    <p style='color:#D4AF37; font-size:15px;'>
-    Added logins: if your name is below you have an account, see the sidebar for more details
-    </p>
-    """,
-    unsafe_allow_html=True,
-)
-st.markdown("*For technical support, questions, or suggestions, contact Chris at boyd.christinalea@gmail.com*")
-st.markdown("---")
-
-if not users:
-    st.warning("No athletes yet. Add athletes in the sidebar!")
-else:
-    # ===== OVERALL CHAMPION =====
-    overall_df = build_overall_leaderboard(data)
-
-    st.subheader("REIGNING CHAMPIONS")
-
-    if not overall_df.empty:
-        st.dataframe(overall_df, use_container_width=True)
-
-        if overall_df.iloc[0]["Total PR"] > 0:
-            st.success(
-                f" **BEARER OF ABSOLUTE SUPREMACY: {overall_df.iloc[0]['Name']}** "
-                f"with {overall_df.iloc[0]['Total PR']}kg total PR improvement!"
-            )
-        else:
-            st.info("No PRs set yet!")
-
-    # ===== OVERALL LEADER HISTORY =====
-    st.markdown("---")
-    st.subheader("Overall Leader History")
-
-    history_df = build_overall_leader_history(data)
-
-    if not history_df.empty:
-        history_df = history_df.sort_values("logged_at").reset_index(drop=True)
-        history_df["logged_at_str"] = history_df["logged_at"].dt.strftime("%Y-%m-%d %H:%M UTC")
-
-        history_display = history_df[
-            ["logged_at_str", "leader", "total_pr", "trigger_athlete", "trigger_lift", "trigger_weight"]
-        ].copy()
-        history_display.columns = [
-            "Logged At",
-            "Leader",
-            "Total PR",
-            "Trigger Athlete",
-            "Trigger Lift",
-            "Trigger Weight (kg)",
-        ]
-
-        fig = go.Figure()
-        fig.add_trace(
-            go.Scatter(
-                x=history_df["logged_at"],
-                y=history_df["total_pr"],
-                mode="lines+markers+text",
-                text=history_df["leader"],
-                textposition="top center",
-                hovertemplate=(
-                    "Logged At: %{x|%Y-%m-%d %H:%M}<br>"
-                    "Leader: %{text}<br>"
-                    "Total PR: %{y}kg<extra></extra>"
-                ),
-            )
-        )
-        fig.update_layout(
-            title="History of the #1 Overall Leader",
-            xaxis_title="Logged At",
-            yaxis_title="Leader's Total PR (kg)",
-            showlegend=False,
-        )
-
-        st.plotly_chart(fig, use_container_width=True)
-        st.dataframe(history_display, use_container_width=True)
-    else:
-        st.info("No dated lifts yet, so there is no leaderboard history to plot.")
-
-    # ===== INDIVIDUAL LIFT LEADERBOARDS =====
-    st.markdown("---")
-    st.subheader("Live Leaderboards")
-
-    lift_tabs = st.tabs(ALL_LIFTS)
-
-    for tab, lift in zip(lift_tabs, ALL_LIFTS):
-        with tab:
-            st.markdown(f"### {lift} Leaderboard")
-
-            lb_df = build_lift_leaderboard(data, lift)
-
-            if not lb_df.empty:
-                st.dataframe(lb_df, use_container_width=True)
-
-                top_pr = lb_df.iloc[0]["Weight (kg)"]
-                st.info(
-                    f"**Current {lift} PR: {top_pr}kg** "
-                    f"(set by {lb_df.iloc[0]['Name']} on {lb_df.iloc[0]['Date']})"
-                )
-
-                fig = px.bar(
-                    lb_df,
-                    x="Name",
-                    y="Weight (kg)",
-                    title=f"{lift} - Max Weights",
-                    color="Ratio (Lift/BW)",
-                    color_continuous_scale="Viridis",
-                    hover_data=["Gym Affiliation", "Ratio (Lift/BW)", "Date"],
-                )
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.info(f"No athletes with a valid base lift and 1-rep attempt for {lift} yet.")
-
-st.markdown("---")
-st.caption("Ultimate Troutman Training System's Squat War 2026 - May the gains be ever in your favor ⚔️")
