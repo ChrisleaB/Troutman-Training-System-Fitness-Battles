@@ -311,7 +311,7 @@ with st.sidebar.expander("Login Champion", expanded=False):
             key="champion_login_user",
         )
         login_password = st.text_input("Password:", type="password", key="champion_login_pass")
-        st.caption("Your password is the same as your name/username.")
+        st.caption("Your password is the same as your name/username (include the space).")
 
         if st.button("Login Champion", key="champion_login_btn"):
             if login_user in data and login_password == login_user:
