@@ -309,7 +309,7 @@ st.sidebar.markdown("---")
 
 # Enter the Arena button only for logged-out users
 if not st.session_state.champion_logged_in:
-    if st.sidebar.button("Enter the Arena, Champion", key="nav_enter"):
+    if st.sidebar.button(">  Enter the Arena, Champion", key="nav_enter"):
         st.session_state.mode = "enter"
         st.rerun()
 
@@ -343,7 +343,7 @@ with st.sidebar.expander("Login Champion", expanded=False):
                 st.error("Incorrect name or password.")
 
 # Page navigation
-if st.sidebar.button("View Champions", key="view_champions_btn"):
+if st.sidebar.button(">  View Champions", key="view_champions_btn"):
     st.switch_page("pages/View_Champions.py")
 
 # Admin login
