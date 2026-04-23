@@ -49,6 +49,8 @@ if "current_user" not in st.session_state:
     st.session_state.current_user = None
 if "success_message" not in st.session_state:
     st.session_state.success_message = ""
+if "mode" not in st.session_state:
+    st.session_state.mode = "enter"
 
 
 def has_valid_base_lift(user_data, lift_type):
@@ -282,8 +284,7 @@ def build_overall_leader_history(data, all_lifts=ALL_LIFTS):
 st.sidebar.title("⚔️ Squat War Portal")
 st.sidebar.caption(
     "If you previously signed up (can see your name on the leaderboard), "
-    "you already have a login account.\n\n"
-    "Username = your name\nPassword = your name"
+    "you already have a login account. Username = your name. Password = your name."
 )
 st.sidebar.markdown("---")
 
@@ -298,11 +299,12 @@ if st.session_state.get("current_user") and st.session_state.current_user not in
 with st.sidebar.expander("Login Champion", expanded=False):
     if st.session_state.champion_logged_in and st.session_state.current_user in users:
         st.success(f"Logged in as {st.session_state.current_user}")
-        st.caption("Your password is the same as your name/username (include the space).")
+        st.caption("Your password is the same as your name/username.")
 
         if st.button("Logout Champion", key="champion_logout"):
             st.session_state.champion_logged_in = False
             st.session_state.current_user = None
+            st.session_state.mode = "enter"
             st.rerun()
     else:
         login_user = st.selectbox(
@@ -311,15 +313,29 @@ with st.sidebar.expander("Login Champion", expanded=False):
             key="champion_login_user",
         )
         login_password = st.text_input("Password:", type="password", key="champion_login_pass")
-        st.caption("Your password is the same as your name/username (include the space).")
+        st.caption("Your password is the same as your name/username.")
 
         if st.button("Login Champion", key="champion_login_btn"):
             if login_user in data and login_password == login_user:
                 st.session_state.current_user = login_user
                 st.session_state.champion_logged_in = True
+                st.session_state.mode = "submit"
                 st.rerun()
             else:
                 st.error("Incorrect name or password.")
+
+# Action buttons
+st.sidebar.markdown("### Actions")
+
+if st.session_state.champion_logged_in:
+    if st.sidebar.button("Submit Lift", key="nav_submit"):
+        st.session_state.mode = "submit"
+    st.sidebar.markdown("---")
+    if st.sidebar.button("Edit Champion Profile", key="nav_edit"):
+        st.session_state.mode = "edit"
+else:
+    if st.sidebar.button("Enter the Arena, Champion", key="nav_enter"):
+        st.session_state.mode = "enter"
 
 # Page navigation
 if st.sidebar.button("View Champions"):
@@ -375,18 +391,16 @@ with st.sidebar.expander("Admin", expanded=False):
 
 st.sidebar.markdown("---")
 
+# Keep mode valid for login state
 if st.session_state.champion_logged_in:
-    mode = st.sidebar.radio(
-        "Select Action:",
-        ["Submit Lift", "Edit Champion Profile"],
-    )
+    if st.session_state.mode not in ("submit", "edit"):
+        st.session_state.mode = "submit"
 else:
-    mode = st.sidebar.radio(
-        "Select Action:",
-        ["Enter the Arena, Champion"],
-    )
+    st.session_state.mode = "enter"
 
-if mode == "Enter the Arena, Champion":
+mode = st.session_state.mode
+
+if mode == "Enter the Arena, Champion" or mode == "enter":
     st.sidebar.subheader("Add New Athlete")
     new_user = st.sidebar.text_input("Athlete Name:")
     new_age = st.sidebar.number_input("Age:", min_value=15, max_value=80)
@@ -407,6 +421,7 @@ if mode == "Enter the Arena, Champion":
             if ok:
                 st.session_state.current_user = new_user
                 st.session_state.champion_logged_in = True
+                st.session_state.mode = "submit"
                 st.session_state.success_message = f"Champion {new_user} entered and logged in 🗡️"
                 st.session_state.just_submitted = True
                 st.rerun()
@@ -415,7 +430,7 @@ if mode == "Enter the Arena, Champion":
         elif new_user in data:
             st.sidebar.error(f"✗ {new_user} already exists!")
 
-elif mode == "Edit Champion Profile":
+elif mode == "Edit Champion Profile" or mode == "edit":
     st.sidebar.subheader("Edit Your Profile")
 
     if not st.session_state.champion_logged_in or not st.session_state.current_user:
@@ -455,7 +470,7 @@ elif mode == "Edit Champion Profile":
             else:
                 st.sidebar.error("Could not update athlete.")
 
-elif mode == "Submit Lift":
+elif mode == "Submit Lift" or mode == "submit":
     st.sidebar.subheader("Log Your Lift")
 
     if not st.session_state.champion_logged_in or not st.session_state.current_user:
