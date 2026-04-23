@@ -312,10 +312,6 @@ if not st.session_state.champion_logged_in:
     if st.sidebar.button("Enter the Arena, Champion", key="nav_enter"):
         st.session_state.mode = "enter"
         st.rerun()
-
-# Page navigation
-if st.sidebar.button("View Champions", key="view_champions_btn"):
-    st.switch_page("pages/View_Champions.py")
     
 # Champion login
 with st.sidebar.expander("Login Champion", expanded=False):
@@ -393,7 +389,9 @@ with st.sidebar.expander("Admin", expanded=False):
         if st.button("Logout", key="admin_logout"):
             st.session_state.admin_logged_in = False
             st.rerun()
-
+# Page navigation
+if st.sidebar.button("View Champions", key="view_champions_btn"):
+    st.switch_page("pages/View_Champions.py")
 st.sidebar.markdown("---")
 
 # Action buttons
