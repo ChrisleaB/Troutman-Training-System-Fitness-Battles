@@ -404,8 +404,6 @@ if st.session_state.champion_logged_in:
         st.session_state.mode = "submit"
         st.rerun()
 
-    st.sidebar.markdown("---")
-
     if st.sidebar.button("Edit Champion Profile", key="nav_edit"):
         st.session_state.mode = "edit"
         st.rerun()
