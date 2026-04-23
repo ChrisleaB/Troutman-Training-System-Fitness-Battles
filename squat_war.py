@@ -309,8 +309,6 @@ st.sidebar.markdown("---")
 
 if not st.session_state.champion_logged_in:
     with st.sidebar.expander("Enter the Arena Champion"):
-        st.sidebar.subheader("Add New Athlete")
-
         new_user = st.text_input("Athlete Name:")
         new_age = st.number_input("Age:", min_value=15, max_value=80)
         new_weight = st.number_input("Body Weight (kg):", min_value=40, max_value=200)
