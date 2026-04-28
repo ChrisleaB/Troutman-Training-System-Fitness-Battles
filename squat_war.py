@@ -541,7 +541,7 @@ else:
                 df_scatter["Size"] = pd.cut(
                     df_scatter["EffortScaled"],
                     bins=[0, 2, 4, 6, 8],
-                    labels=[10, 18, 26, 36]
+                    labels=[6, 10, 14, 20]
                 ).astype(float)
             
                 df_scatter["Size"] = df_scatter["Size"].fillna(10)
@@ -568,7 +568,7 @@ else:
                         x="Reps",
                         y="Weight",
                         size="Size",
-                        size_max=65,
+                        size_max=30,
                         color="RelStrength",
                         color_continuous_scale="plasma",
                         hover_name="Name",
@@ -582,7 +582,7 @@ else:
                         title=f"{lift} — Who's got that DAWG in them",
                     )
             
-                    st.caption("🏆 Gold ring = >2x BW | 🔴 Red ring = SUPER DAWG")
+                    st.caption("Gold ring = >2x BW | Red ring = SUPER DAWG")
             
                     fig.update_traces(
                         marker=dict(
