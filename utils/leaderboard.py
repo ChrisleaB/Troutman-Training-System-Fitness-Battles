@@ -1,228 +1,201 @@
 import pandas as pd
 from admin.supabase_client import ALL_LIFTS
 
+# ======================
+# CONSTANTS
+# ======================
+REP_PERCENT_MAP = {
+    2: 0.95,
+    3: 0.925,
+    4: 0.90,
+    5: 0.875,
+    6: 0.86,
+    8: 0.75,
+    10: 0.70,
+}
+
+# ======================
+# BASIC HELPERS (must come first)
+# ======================
 def has_valid_base_lift(user_data, lift_type):
-    """A lift only counts if the athlete has a positive baseline set for that lift."""
     return user_data.get("base_lifts", {}).get(lift_type, 0) > 0
 
 
 def get_best_single_attempt(user_data, lift_type):
-    """Return best 1-rep attempt for a lift, or None."""
     attempts = user_data.get("lifts", {}).get(lift_type, [])
-    single_attempts = [a for a in attempts if int(a.get("reps", 1)) == 1]
-    if not single_attempts:
+    singles = [a for a in attempts if int(a.get("reps", 1)) == 1]
+    if not singles:
         return None
-    return max(a["weight_kg"] for a in single_attempts)
+    return max(a["weight_kg"] for a in singles)
+
+# ======================
+# 1RM LOGIC
+# ======================
+def estimate_1rm_from_map(weight, reps):
+    reps = int(reps)
+
+    if reps <= 1:
+        return weight
+
+    pct = REP_PERCENT_MAP.get(reps)
+    if pct:
+        return weight / pct
+
+    return weight * (1 + reps / 30)
 
 
+def get_best_estimated_1rm(user_data, lift_type):
+    attempts = user_data.get("lifts", {}).get(lift_type, [])
+    estimates = []
+
+    for a in attempts:
+        reps = int(a.get("reps", 1))
+        weight = float(a.get("weight_kg", 0))
+
+        if reps <= 1:
+            continue
+
+        estimates.append(estimate_1rm_from_map(weight, reps))
+
+    return max(estimates) if estimates else None
+
+# ======================
+# SCORING
+# ======================
+def get_cumulative_pr_score(user_data, lift_type):
+    baseline = user_data.get("base_lifts", {}).get(lift_type, 0)
+    bw = user_data.get("weight_kg", 1)
+
+    if baseline <= 0:
+        return 0
+
+    best_single = get_best_single_attempt(user_data, lift_type)
+    pr_gain = max(0, best_single - baseline) if best_single else 0
+    bw_ratio = (best_single / bw) if best_single else 0
+
+    est_1rm = get_best_estimated_1rm(user_data, lift_type)
+
+    if est_1rm is not None and est_1rm / baseline > 1:
+        est_ratio = (est_1rm / baseline) - 1
+    else:
+        est_ratio = 0
+
+    return 0.4 * pr_gain + 0.3 * bw_ratio + 0.3 * est_ratio
+
+
+def get_total_cumulative_score(user_data, all_lifts):
+    return sum(get_cumulative_pr_score(user_data, lift) for lift in all_lifts)
+
+# ======================
+# ANALYTICS
+# ======================
+def build_estimated_1rm_history(data, user_name, lift_type):
+    user = data.get(user_name, {})
+    lifts = user.get("lifts", {}).get(lift_type, [])
+
+    baseline = user.get("base_lifts", {}).get(lift_type, 0)
+    if not lifts or baseline <= 0:
+        return pd.DataFrame()
+
+    records = []
+
+    for a in lifts:
+        reps = int(a.get("reps", 1))
+        if reps <= 1:
+            continue
+
+        weight = float(a.get("weight_kg", 0))
+        est = estimate_1rm_from_map(weight, reps)
+
+        records.append({
+            "date": pd.to_datetime(a.get("date")),
+            "estimated_1rm": est,
+            "baseline": baseline,
+            "pct_of_baseline": est / baseline,
+            "athlete": user_name,
+        })
+
+    return pd.DataFrame(records).sort_values("date") if records else pd.DataFrame()
+
+# ======================
+# LEADERBOARD HELPERS
+# ======================
 def get_lifts_missing_baseline(user_data):
-    """Return lift types that have attempts logged but no base lift set."""
     missing = []
-    for lift_type in ALL_LIFTS:
-        if user_data.get("lifts", {}).get(lift_type) and not has_valid_base_lift(user_data, lift_type):
-            missing.append(lift_type)
+    for lift in ALL_LIFTS:
+        if user_data.get("lifts", {}).get(lift) and not has_valid_base_lift(user_data, lift):
+            missing.append(lift)
     return missing
 
 
 def get_total_pr(data, user_name, all_lifts=ALL_LIFTS):
-    """
-    Calculate total PR improvement using only 1-rep attempts.
-    Negative contributions are not counted.
-    Lifts without a valid base lift do not contribute.
-    """
     user = data[user_name]
     total = 0
 
-    for lift_type in all_lifts:
-        if not has_valid_base_lift(user, lift_type):
+    for lift in all_lifts:
+        if not has_valid_base_lift(user, lift):
             continue
 
-        baseline = user.get("base_lifts", {}).get(lift_type, 0)
-        best_single = get_best_single_attempt(user, lift_type)
+        baseline = user.get("base_lifts", {}).get(lift, 0)
+        best = get_best_single_attempt(user, lift)
 
-        if best_single is None:
-            contribution = 0
-        else:
-            contribution = max(0, best_single - baseline)
-
-        total += contribution
+        total += max(0, best - baseline) if best else 0
 
     return total
 
-
+# ======================
+# LEADERBOARDS
+# ======================
 def build_overall_leaderboard(data, all_lifts=ALL_LIFTS):
-    overall_data = []
+    rows = []
+
     for name, user in data.items():
-        total_pr = get_total_pr(data, name, all_lifts)
-        overall_data.append(
-            {
-                "Rank": 0,
-                "Name": name,
-                "Total PR": total_pr,
-                "Body Weight (kg)": user.get("weight_kg", 0),
-                "Gym Affiliation": user.get("gym", "N/A"),
-            }
-        )
+        rows.append({
+            "Rank": 0,
+            "Name": name,
+            "Total PR": get_total_pr(data, name),
+            "Cumulative Score": round(get_total_cumulative_score(user, all_lifts), 2),
+            "Body Weight (kg)": user.get("weight_kg", 0),
+            "Gym Affiliation": user.get("gym", "N/A"),
+        })
 
-    overall_data = sorted(overall_data, key=lambda x: x["Total PR"], reverse=True)
-    for i, row in enumerate(overall_data):
-        row["Rank"] = i + 1
+    rows = sorted(rows, key=lambda x: x["Cumulative Score"], reverse=True)
 
-    return pd.DataFrame(overall_data)
+    for i, r in enumerate(rows):
+        r["Rank"] = i + 1
+
+    return pd.DataFrame(rows)
 
 
 def build_lift_leaderboard(data, lift):
-    """
-    Build a lift leaderboard using only 1-rep attempts.
-    Athletes without a valid base lift for that movement are excluded.
-    """
-    leaderboard_data = []
+    rows = []
 
     for name, user in data.items():
         if not has_valid_base_lift(user, lift):
             continue
 
-        attempts = user.get("lifts", {}).get(lift, [])
-        single_attempts = [a for a in attempts if int(a.get("reps", 1)) == 1]
+        singles = [a for a in user.get("lifts", {}).get(lift, []) if int(a.get("reps", 1)) == 1]
+        if not singles:
+            continue
 
-        if single_attempts:
-            max_lift = max(single_attempts, key=lambda x: x["weight_kg"])
-            max_weight = max_lift["weight_kg"]
-            body_weight_ratio = round(max_weight / user["weight_kg"], 2)
+        best = max(singles, key=lambda x: x["weight_kg"])
+        bw = user.get("weight_kg", 1)
 
-            leaderboard_data.append(
-                {
-                    "Rank": 0,
-                    "Name": name,
-                    "Weight (kg)": max_weight,
-                    "Reps": max_lift["reps"],
-                    "Body Weight (kg)": user["weight_kg"],
-                    "Ratio (Lift/BW)": body_weight_ratio,
-                    "Gym Affiliation": user.get("gym", "N/A"),
-                    "Date": max_lift["date"][:10],
-                }
-            )
+        rows.append({
+            "Rank": 0,
+            "Name": name,
+            "Weight (kg)": best["weight_kg"],
+            "Reps": best["reps"],
+            "Body Weight (kg)": bw,
+            "Ratio (Lift/BW)": round(best["weight_kg"] / bw, 2),
+            "Cumulative Score": round(get_cumulative_pr_score(user, lift), 2),
+            "Gym Affiliation": user.get("gym", "N/A"),
+            "Date": best["date"][:10],
+        })
 
-    if not leaderboard_data:
+    if not rows:
         return pd.DataFrame()
 
-    lb_df = (
-        pd.DataFrame(leaderboard_data)
-        .sort_values("Weight (kg)", ascending=False)
-        .reset_index(drop=True)
-    )
-    lb_df.index = lb_df.index + 1
-    lb_df["Rank"] = lb_df.index
-    return lb_df.reset_index(drop=True)
-
-
-def build_overall_leader_history(data, all_lifts=ALL_LIFTS):
-    """
-    Tracks who held #1 overall over time.
-    Uses logged_at timestamps so the timeline reflects when submissions were made.
-    Only 1-rep attempts contribute.
-    Negative PR changes are clamped to 0.
-    Lifts without a valid base lift do not contribute.
-    """
-    if not data:
-        return pd.DataFrame()
-
-    baseline_map = {
-        athlete: {lift: user.get("base_lifts", {}).get(lift, 0) for lift in all_lifts}
-        for athlete, user in data.items()
-    }
-
-    max_map = {
-        athlete: {lift: baseline_map[athlete][lift] for lift in all_lifts}
-        for athlete in data
-    }
-
-    events = []
-    for athlete, user in data.items():
-        for lift_type, attempts in user.get("lifts", {}).items():
-            if lift_type not in all_lifts:
-                continue
-
-            if not has_valid_base_lift(user, lift_type):
-                continue
-
-            for attempt in attempts:
-                if int(attempt.get("reps", 1)) != 1:
-                    continue
-
-                try:
-                    event_dt = pd.to_datetime(
-                        attempt.get("logged_at", attempt.get("date")),
-                        utc=True,
-                        errors="coerce",
-                    )
-                    if pd.isna(event_dt):
-                        continue
-                except Exception:
-                    continue
-
-                events.append(
-                    {
-                        "logged_at": event_dt,
-                        "lift_date": attempt.get("date"),
-                        "athlete": athlete,
-                        "lift_type": lift_type,
-                        "weight_kg": attempt["weight_kg"],
-                        "reps": attempt["reps"],
-                    }
-                )
-
-    if not events:
-        return pd.DataFrame()
-
-    events = sorted(events, key=lambda x: x["logged_at"])
-
-    history = []
-    current_leader = None
-    current_leader_total = None
-
-    for event in events:
-        athlete = event["athlete"]
-        lift_type = event["lift_type"]
-        weight_kg = event["weight_kg"]
-
-        max_map[athlete][lift_type] = max(max_map[athlete][lift_type], weight_kg)
-
-        totals = {}
-        for name in data:
-            total_pr = 0
-            user = data[name]
-            for lift in all_lifts:
-                if not has_valid_base_lift(user, lift):
-                    continue
-                baseline = baseline_map[name][lift]
-                current_max = max_map[name][lift]
-                total_pr += max(0, current_max - baseline)
-            totals[name] = total_pr
-
-        max_total = max(totals.values())
-        tied_leaders = [name for name, value in totals.items() if value == max_total]
-
-        if current_leader in tied_leaders:
-            leader_name = current_leader
-        else:
-            leader_name = tied_leaders[0]
-
-        leader_total = totals[leader_name]
-
-        if leader_name != current_leader or leader_total != current_leader_total:
-            history.append(
-                {
-                    "logged_at": event["logged_at"],
-                    "lift_date": event["lift_date"],
-                    "leader": leader_name,
-                    "total_pr": leader_total,
-                    "trigger_athlete": athlete,
-                    "trigger_lift": lift_type,
-                    "trigger_weight": weight_kg,
-                }
-            )
-            current_leader = leader_name
-            current_leader_total = leader_total
-
-    return pd.DataFrame(history)
+    df = pd.DataFrame(rows).sort_values("Weight (kg)", ascending=False).reset_index(drop=True)
+    df["Rank"] = df.index + 1
+    return df
