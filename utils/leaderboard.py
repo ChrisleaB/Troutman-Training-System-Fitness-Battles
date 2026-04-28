@@ -1,4 +1,5 @@
 import pandas as pd
+from admin.supabase_client import ALL_LIFTS
 
 def has_valid_base_lift(user_data, lift_type):
     """A lift only counts if the athlete has a positive baseline set for that lift."""
