@@ -123,17 +123,19 @@ def build_overall_leaderboard(data, all_lifts=ALL_LIFTS):
     overall_data = []
     for name, user in data.items():
         total_pr = get_total_pr(data, name, all_lifts)
+        cumulative_score = get_total_cumulative_score(user, all_lifts)
         overall_data.append(
             {
                 "Rank": 0,
                 "Name": name,
                 "Total PR": total_pr,
+                "Cumulative Score": round(cumulative_score, 2),
                 "Body Weight (kg)": user.get("weight_kg", 0),
                 "Gym Affiliation": user.get("gym", "N/A"),
             }
         )
 
-    overall_data = sorted(overall_data, key=lambda x: x["Total PR"], reverse=True)
+    overall_data = sorted(overall_data, key=lambda x: x["Cumulative Score"], reverse=True)
     for i, row in enumerate(overall_data):
         row["Rank"] = i + 1
 
@@ -142,8 +144,11 @@ def build_overall_leaderboard(data, all_lifts=ALL_LIFTS):
 
 def build_lift_leaderboard(data, lift):
     """
-    Build a lift leaderboard using only 1-rep attempts.
-    Athletes without a valid base lift for that movement are excluded.
+    Build a lift leaderboard using cumulative score.
+    Includes:
+    - Best 1RM attempt
+    - Bodyweight ratio
+    - Cumulative PR Score
     """
     leaderboard_data = []
 
@@ -157,7 +162,11 @@ def build_lift_leaderboard(data, lift):
         if single_attempts:
             max_lift = max(single_attempts, key=lambda x: x["weight_kg"])
             max_weight = max_lift["weight_kg"]
-            body_weight_ratio = round(max_weight / user["weight_kg"], 2)
+            body_weight = user.get("weight_kg", 1)
+            body_weight_ratio = round(max_weight / body_weight, 2)
+
+            # 🔥 NEW: cumulative score
+            score = get_cumulative_pr_score(user, lift)
 
             leaderboard_data.append(
                 {
@@ -165,8 +174,9 @@ def build_lift_leaderboard(data, lift):
                     "Name": name,
                     "Weight (kg)": max_weight,
                     "Reps": max_lift["reps"],
-                    "Body Weight (kg)": user["weight_kg"],
+                    "Body Weight (kg)": body_weight,
                     "Ratio (Lift/BW)": body_weight_ratio,
+                    "Cumulative Score": round(score, 2),  # 👈 NEW COLUMN
                     "Gym Affiliation": user.get("gym", "N/A"),
                     "Date": max_lift["date"][:10],
                 }
@@ -177,25 +187,24 @@ def build_lift_leaderboard(data, lift):
 
     lb_df = (
         pd.DataFrame(leaderboard_data)
-        .sort_values("Weight (kg)", ascending=False)
+        .sort_values("Cumulative Score", ascending=False)  # 👈 CHANGED SORT
         .reset_index(drop=True)
     )
+
     lb_df.index = lb_df.index + 1
     lb_df["Rank"] = lb_df.index
+
     return lb_df.reset_index(drop=True)
 
 
 def build_overall_leader_history(data, all_lifts=ALL_LIFTS):
     """
-    Tracks who held #1 overall over time.
-    Uses logged_at timestamps so the timeline reflects when submissions were made.
-    Only 1-rep attempts contribute.
-    Negative PR changes are clamped to 0.
-    Lifts without a valid base lift do not contribute.
+    Tracks who held #1 over time using CUMULATIVE SCORE instead of total PR.
     """
     if not data:
         return pd.DataFrame()
 
+    # Track running maxes (still needed for progression)
     baseline_map = {
         athlete: {lift: user.get("base_lifts", {}).get(lift, 0) for lift in all_lifts}
         for athlete, user in data.items()
@@ -207,6 +216,8 @@ def build_overall_leader_history(data, all_lifts=ALL_LIFTS):
     }
 
     events = []
+
+    # Build chronological event list (same as before)
     for athlete, user in data.items():
         for lift_type, attempts in user.get("lifts", {}).items():
             if lift_type not in all_lifts:
@@ -237,7 +248,6 @@ def build_overall_leader_history(data, all_lifts=ALL_LIFTS):
                         "athlete": athlete,
                         "lift_type": lift_type,
                         "weight_kg": attempt["weight_kg"],
-                        "reps": attempt["reps"],
                     }
                 )
 
@@ -248,50 +258,119 @@ def build_overall_leader_history(data, all_lifts=ALL_LIFTS):
 
     history = []
     current_leader = None
-    current_leader_total = None
+    current_leader_score = None
 
     for event in events:
         athlete = event["athlete"]
         lift_type = event["lift_type"]
         weight_kg = event["weight_kg"]
 
+        # Update running max
         max_map[athlete][lift_type] = max(max_map[athlete][lift_type], weight_kg)
 
         totals = {}
+
+        # 🔥 NEW: compute cumulative score for each athlete
         for name in data:
-            total_pr = 0
             user = data[name]
+
+            total_score = 0
+
             for lift in all_lifts:
                 if not has_valid_base_lift(user, lift):
                     continue
-                baseline = baseline_map[name][lift]
-                current_max = max_map[name][lift]
-                total_pr += max(0, current_max - baseline)
-            totals[name] = total_pr
 
-        max_total = max(totals.values())
-        tied_leaders = [name for name, value in totals.items() if value == max_total]
+                # Temporarily override their best lift with current running max
+                temp_user = {
+                    **user,
+                    "lifts": {
+                        **user.get("lifts", {}),
+                        lift: [{"weight_kg": max_map[name][lift], "reps": 1}]
+                    }
+                }
 
+                total_score += get_cumulative_pr_score(temp_user, lift)
+
+            totals[name] = total_score
+
+        max_score = max(totals.values())
+        tied_leaders = [n for n, v in totals.items() if v == max_score]
+
+        # Keep current leader if still tied
         if current_leader in tied_leaders:
             leader_name = current_leader
         else:
             leader_name = tied_leaders[0]
 
-        leader_total = totals[leader_name]
+        leader_score = totals[leader_name]
 
-        if leader_name != current_leader or leader_total != current_leader_total:
+        if leader_name != current_leader or leader_score != current_leader_score:
             history.append(
                 {
                     "logged_at": event["logged_at"],
                     "lift_date": event["lift_date"],
                     "leader": leader_name,
-                    "total_pr": leader_total,
+                    "cumulative_score": round(leader_score, 2),  # 👈 renamed
                     "trigger_athlete": athlete,
                     "trigger_lift": lift_type,
                     "trigger_weight": weight_kg,
                 }
             )
+
             current_leader = leader_name
-            current_leader_total = leader_total
+            current_leader_score = leader_score
 
     return pd.DataFrame(history)
+def get_best_estimated_1rm(user_data, lift_type):
+    attempts = user_data.get("lifts", {}).get(lift_type, [])
+    estimates = []
+
+    for a in attempts:
+        reps = int(a.get("reps", 1))
+        weight = float(a.get("weight_kg", 0))
+
+        if reps <= 1:
+            continue
+
+        est = estimate_1rm_from_map(weight, reps)
+        estimates.append(est)
+
+    if not estimates:
+        return None
+
+    return max(estimates)
+
+
+def get_cumulative_pr_score(user_data, lift_type):
+    baseline = user_data.get("base_lifts", {}).get(lift_type, 0)
+    bw = user_data.get("weight_kg", 1)
+
+    if baseline <= 0:
+        return 0
+
+    # PR gain
+    best_single = get_best_single_attempt(user_data, lift_type)
+    pr_gain = max(0, (best_single - baseline)) if best_single else 0
+
+    # BW ratio
+    bw_ratio = (best_single / bw) if best_single else 0
+
+    # Estimated PR term
+    est_1rm = get_best_estimated_1rm(user_data, lift_type)
+
+    if est_1rm and est_1rm / baseline > 1:
+        est_ratio = est_1rm / baseline
+    else:
+        est_ratio = 0
+
+    score = (
+        0.4 * pr_gain
+        + 0.3 * bw_ratio
+        + 0.3 * est_ratio
+    )
+
+    return score
+
+
+def get_total_cumulative_score(user_data, all_lifts):
+    return sum(get_cumulative_pr_score(user_data, lift) for lift in all_lifts)
