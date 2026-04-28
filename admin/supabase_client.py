@@ -28,7 +28,7 @@ def load_data() -> Dict[str, Any]:
             athletes[row["name"]] = {
                 "age": row.get("age", 0),
                 "weight_kg": row.get("weight_kg", 0),
-                "gym": row.get("gym", "NA"),
+                "gym": row.get("gym") or "NA",
                 "base_lifts": {**DEFAULT_BASE_LIFTS, **(row.get("base_lifts") or {})},
                 "lifts": row.get("lifts") or {},
                 "created": row.get("created_at"),
@@ -40,30 +40,30 @@ def load_data() -> Dict[str, Any]:
         return {}
 
 
-def save_data(data: Dict[str, Any]) -> None:
-    """Overwrite all athlete rows in Supabase with the current local state."""
-    try:
-        client.table("athletes").delete().neq("id", 0).execute()
+#def save_data(data: Dict[str, Any]) -> None:
+ #   """Overwrite all athlete rows in Supabase with the current local state."""
+  #  try:
+   #     client.table("athletes").delete().neq("id", 0).execute()
+#
+ #       rows = []
+  #      for name, user_data in data.items():
+   #         rows.append(
+    #            {
+     #               "name": name,
+      #              "age": user_data.get("age", 0),
+       #             "weight_kg": user_data.get("weight_kg", 0),
+        #            "gym": user_data.get("gym", "NA"),
+         #           "base_lifts": user_data.get("base_lifts", DEFAULT_BASE_LIFTS.copy()),
+          #          "lifts": user_data.get("lifts", {}),
+           #         "created_at": user_data.get("created", datetime.now().isoformat()),
+            #    }
+            #)
 
-        rows = []
-        for name, user_data in data.items():
-            rows.append(
-                {
-                    "name": name,
-                    "age": user_data.get("age", 0),
-                    "weight_kg": user_data.get("weight_kg", 0),
-                    "gym": user_data.get("gym", "NA"),
-                    "base_lifts": user_data.get("base_lifts", DEFAULT_BASE_LIFTS.copy()),
-                    "lifts": user_data.get("lifts", {}),
-                    "created_at": user_data.get("created", datetime.now().isoformat()),
-                }
-            )
+        #if rows:
+         #   client.table("athletes").insert(rows).execute()
 
-        if rows:
-            client.table("athletes").insert(rows).execute()
-
-    except Exception as e:
-        print(f"Error saving data: {e}")
+   # except Exception as e:
+    #    print(f"Error saving data: {e}")
 
 
 def add_athlete(name: str, age: int, weight_kg: float, gym: str) -> bool:
