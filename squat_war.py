@@ -544,8 +544,8 @@ else:
                     labels=[1, 2, 4, 7, 10, 15, 18, 21]
                 ).astype(float)
             
-                df_scatter["Size"] = df_scatter["Size"].fillna(10)
-            
+                df_scatter["Size"] = df_scatter["Size"].fillna(4)
+                            
                 df_scatter["Elite"] = df_scatter["RelStrength"] > 2
             
                 col1, col2 = st.columns([3, 1])
@@ -568,7 +568,7 @@ else:
                         x="Reps",
                         y="Weight",
                         size="Size",
-                        size_max=30,
+                        size_max=24,
                         color="RelStrength",
                         color_continuous_scale="plasma",
                         hover_name="Name",
