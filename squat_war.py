@@ -488,8 +488,10 @@ else:
                 st.plotly_chart(fig_est, use_container_width=True)
             else:
                 st.info("No multi-rep data available for estimated 1RM tracking.")
+            
             st.markdown("---")
             st.markdown("#### Who's got that DAWG in them")
+            
             # ===== FILTER =====
             if st.session_state.champion_logged_in and st.session_state.current_user:
                 filter_mode = st.radio(
@@ -518,27 +520,49 @@ else:
                     weight = float(a.get("weight_kg", 0))
                     reps = int(a.get("reps", 1))
             
-                    effort_score = (weight / baseline) * reps
+                    effort_raw = (weight / baseline) * reps
+                    effort_scaled = min(effort_raw, 8)  # 🔥 cap at 8
                     rel_strength = weight / bw
             
                     scatter_data.append({
                         "Name": name,
                         "Reps": reps,
                         "Weight": weight,
-                        "Effort": effort_score,
+                        "Effort": effort_raw,
+                        "EffortScaled": effort_scaled,
+                        "SuperDawg": effort_raw >= 10,  # 🔥 elite flag
                         "RelStrength": rel_strength,
                     })
             
             if scatter_data:
                 df_scatter = pd.DataFrame(scatter_data)
             
-                df_scatter["Size"] = np.sqrt(df_scatter["Effort"]) * 14
+                # ===== BUCKETED SIZES =====
+                df_scatter["Size"] = pd.cut(
+                    df_scatter["EffortScaled"],
+                    bins=[0, 2, 4, 6, 8],
+                    labels=[10, 18, 26, 36]
+                ).astype(float)
+            
+                df_scatter["Size"] = df_scatter["Size"].fillna(10)
+            
                 df_scatter["Elite"] = df_scatter["RelStrength"] > 2
             
                 col1, col2 = st.columns([3, 1])
             
                 # ===== CHART =====
                 with col1:
+                    st.subheader(
+                        "ℹ️ How to read this chart",
+                        help=(
+                            "Dot size = effort (scaled 1–8)\n\n"
+                            "Color = relative strength (weight ÷ bodyweight)\n\n"
+                            "Gold ring = >2x bodyweight\n"
+                            "Red ring = SUPER DAWG (10+ effort)\n\n"
+                            "Effort = (weight ÷ baseline) × reps"
+                        )
+                    )
+            
                     fig = px.scatter(
                         df_scatter,
                         x="Reps",
@@ -558,6 +582,8 @@ else:
                         title=f"{lift} — Who's got that DAWG in them",
                     )
             
+                    st.caption("🏆 Gold ring = >2x BW | 🔴 Red ring = SUPER DAWG")
+            
                     fig.update_traces(
                         marker=dict(
                             opacity=0.75,
@@ -565,7 +591,7 @@ else:
                         )
                     )
             
-                    # Elite gold outline
+                    # ===== ELITE (gold) =====
                     for _, row in df_scatter.iterrows():
                         if row["Elite"]:
                             fig.add_scatter(
@@ -576,6 +602,22 @@ else:
                                     size=row["Size"],
                                     color="rgba(0,0,0,0)",
                                     line=dict(color="gold", width=3),
+                                ),
+                                showlegend=False,
+                                hoverinfo="skip"
+                            )
+            
+                    # ===== SUPER DAWG (red) =====
+                    for _, row in df_scatter.iterrows():
+                        if row["SuperDawg"]:
+                            fig.add_scatter(
+                                x=[row["Reps"]],
+                                y=[row["Weight"]],
+                                mode="markers",
+                                marker=dict(
+                                    size=row["Size"] + 10,
+                                    color="rgba(0,0,0,0)",
+                                    line=dict(color="red", width=4),
                                 ),
                                 showlegend=False,
                                 hoverinfo="skip"
