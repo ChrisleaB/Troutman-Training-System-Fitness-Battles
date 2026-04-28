@@ -29,7 +29,7 @@ def load_data() -> Dict[str, Any]:
                 "age": row.get("age", 0),
                 "weight_kg": row.get("weight_kg", 0),
                 "gym": row.get("gym", "NA"),
-                "base_lifts": row.get("base_lifts") or DEFAULT_BASE_LIFTS.copy(),
+                "base_lifts": {**DEFAULT_BASE_LIFTS, **(row.get("base_lifts") or {})},
                 "lifts": row.get("lifts") or {},
                 "created": row.get("created_at"),
             }
@@ -116,8 +116,11 @@ def update_athlete(name: str, age: int, weight_kg: float, gym: str) -> bool:
 def add_lift(name: str, lift_type: str, weight_kg: float, reps: int, lift_date: date) -> bool:
     """Add a lift for an athlete."""
     try:
-        if reps > 10:
-            raise ValueError("while you may be strong, this app is not and cannot support greater than 10 reps")
+        if not (1 <= reps <= 10):
+            raise ValueError("Reps must be between 1 and 10")
+        
+        if weight_kg <= 0:
+            raise ValueError("Weight must be a positive number")
 
         client.rpc(
             "append_lift",
