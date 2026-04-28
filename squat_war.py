@@ -90,111 +90,108 @@ st.sidebar.markdown("---")
 # Enter the Arena (only when logged out)
 if not st.session_state.champion_logged_in:
     with st.sidebar.expander("Enter the Arena Champion"):
-        new_user = st.sidebar.text_input("Athlete Name:")
-        new_age = st.sidebar.number_input("Age:", min_value=15, max_value=80)
-        new_weight = st.sidebar.number_input("Body Weight (kg):", min_value=40, max_value=200)
+        new_user = st.text_input("Athlete Name:")
+        new_age = st.number_input("Age:", min_value=15, max_value=80)
+        new_weight = st.number_input("Body Weight (kg):", min_value=40, max_value=200)
 
         gym_options = ["Troutman Training Systems", "NA", "Other"]
-        selected_gym = st.sidebar.selectbox("Gym Affiliation:", gym_options)
-        st.sidebar.caption("(if no affiliation --> NA)")
+        selected_gym = st.selectbox("Gym Affiliation:", gym_options)
+        st.caption("(if no affiliation --> NA)")
 
         if selected_gym == "Other":
-            new_gym = st.sidebar.text_input("Enter gym name:")
+            new_gym = st.text_input("Enter gym name:")
         else:
             new_gym = selected_gym
 
-        if st.sidebar.button("Add", key="add_athlete"):
+        if st.button("Add", key="add_athlete"):
             if new_user and new_user not in data:
                 ok = add_athlete(new_user, int(new_age), float(new_weight), new_gym)
                 if ok:
                     st.session_state.current_user = new_user
                     st.session_state.champion_logged_in = True
-                    st.session_state.mode = "home"  # 👈 add this
+                    st.session_state.mode = "home" 
                     st.session_state.success_message = f"Champion {new_user} entered and logged in 🗡️"
                     st.session_state.just_submitted = True
                     st.rerun()
-                    
                 else:
-                    st.sidebar.error("Could not add athlete.")
+                    st.error("Could not add athlete.")
             elif new_user in data:
-                st.sidebar.error(f"✗ {new_user} already exists!")
-
-
+                st.error(f"✗ {new_user} already exists!")
+    
 # Champion login
 with st.sidebar.expander("Login Champion", expanded=False):
     if st.session_state.champion_logged_in and st.session_state.current_user in users:
-        st.sidebar.success(f"Logged in as {st.session_state.current_user}")
-        st.sidebar.caption("Your password is the same as your name/username.")
+        st.success(f"Logged in as {st.session_state.current_user}")
+        st.caption("Your password is the same as your name/username.")
 
-        if st.sidebar.button("Logout Champion", key="champion_logout"):
+        if st.button("Logout Champion", key="champion_logout"):
             st.session_state.champion_logged_in = False
             st.session_state.current_user = None
             st.session_state.mode = "home"
             st.rerun()
     else:
-        login_user = st.sidebar.selectbox(
+        login_user = st.selectbox(
             "Select your name:",
             users if users else ["No users yet"],
             key="champion_login_user",
         )
-        login_password = st.sidebar.text_input("Password:", type="password", key="champion_login_pass")
-        st.sidebar.caption("Your password is the same as your name/username.")
+        login_password = st.text_input("Password:", type="password", key="champion_login_pass")
+        st.caption("Your password is the same as your name/username.")
 
-        if st.sidebar.button("Login Champion", key="champion_login_btn"):
+        if st.button("Login Champion", key="champion_login_btn"):
             if login_user in data and login_password == login_user:
                 st.session_state.current_user = login_user
                 st.session_state.champion_logged_in = True
                 st.session_state.mode = "home"
                 st.rerun()
             else:
-                st.sidebar.error("Incorrect name or password.")
-
+                st.error("Incorrect name or password.")
 
 # Admin login
 with st.sidebar.expander("Admin", expanded=False):
     if not st.session_state.get("admin_logged_in", False):
-        admin_password = st.sidebar.text_input("Password:", type="password", key="admin_pass")
+        admin_password = st.text_input("Password:", type="password", key="admin_pass")
 
-        if st.sidebar.button("Login", key="admin_login"):
+        if st.button("Login", key="admin_login"):
             if admin_password == "user":
                 st.session_state.admin_logged_in = True
                 st.rerun()
             else:
-                st.sidebar.error("✗ Incorrect password")
+                st.error("✗ Incorrect password")
     else:
-        st.sidebar.success("✓ Admin logged in")
-        st.sidebar.markdown("---")
-        st.sidebar.markdown("**Admin Controls**")
+        st.success("✓ Admin logged in")
+        st.markdown("---")
+        st.markdown("**Admin Controls**")
 
-        st.sidebar.warning("⚠️ CAUTION: These actions cannot be undone!")
+        st.warning("⚠️ CAUTION: These actions cannot be undone!")
 
-        clear_user = st.sidebar.selectbox("Select user to clear data:", users if users else ["No users"])
+        clear_user = st.selectbox("Select user to clear data:", users if users else ["No users"])
 
-        if st.sidebar.button("Clear User Data", key="clear_user_data"):
+        if st.button("Clear User Data", key="clear_user_data"):
             if clear_user and clear_user in data:
                 delete_athlete_lifts(clear_user)
                 st.session_state.just_submitted = True
                 st.rerun()
 
-        st.sidebar.markdown("---")
-        st.sidebar.markdown("**Delete Athlete**")
+        st.markdown("---")
+        st.markdown("**Delete Athlete**")
 
-        delete_user = st.sidebar.selectbox("Select athlete to delete:", users if users else ["No users"])
-        confirm_delete = st.sidebar.checkbox("I understand this permanently deletes the athlete")
+        delete_user = st.selectbox("Select athlete to delete:", users if users else ["No users"])
+        confirm_delete = st.checkbox("I understand this permanently deletes the athlete")
 
-        if st.sidebar.button("Delete Athlete", key="delete_athlete_btn"):
+        if st.button("Delete Athlete", key="delete_athlete_btn"):
             if not confirm_delete:
-                st.sidebar.warning("Please confirm deletion first.")
+                st.warning("Please confirm deletion first.")
             elif delete_user and delete_user in data:
                 success = delete_athlete(delete_user)
                 if success:
                     st.session_state.just_submitted = True
                     st.rerun()
                 else:
-                    st.sidebar.error("Failed to delete athlete.")
+                    st.error("Failed to delete athlete.")
 
-        st.sidebar.markdown("---")
-        if st.sidebar.button("Logout", key="admin_logout"):
+        st.markdown("---")
+        if st.button("Logout", key="admin_logout"):
             st.session_state.admin_logged_in = False
             st.rerun()
 # Page navigation
@@ -215,7 +212,6 @@ if st.session_state.champion_logged_in:
         st.rerun()
 
 mode = st.session_state.mode
-
 # ===== MODE-DRIVEN SIDEBAR FORMS =====
 if mode == "edit":
     st.sidebar.subheader("Edit Your Profile")
