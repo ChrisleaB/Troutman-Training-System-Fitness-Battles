@@ -199,3 +199,130 @@ def build_lift_leaderboard(data, lift):
     df = pd.DataFrame(rows).sort_values("Weight (kg)", ascending=False).reset_index(drop=True)
     df["Rank"] = df.index + 1
     return df
+    
+def build_overall_leader_history(data, all_lifts=ALL_LIFTS):
+    """
+    Tracks who held #1 over time using cumulative score.
+    """
+    if not data:
+        return pd.DataFrame()
+
+    # Initialize baseline + running max maps
+    baseline_map = {
+        athlete: {lift: user.get("base_lifts", {}).get(lift, 0) for lift in all_lifts}
+        for athlete, user in data.items()
+    }
+
+    max_map = {
+        athlete: {lift: baseline_map[athlete][lift] for lift in all_lifts}
+        for athlete in data
+    }
+
+    # Build event timeline
+    events = []
+    for athlete, user in data.items():
+        for lift_type, attempts in user.get("lifts", {}).items():
+            if lift_type not in all_lifts:
+                continue
+
+            if not has_valid_base_lift(user, lift_type):
+                continue
+
+            for attempt in attempts:
+                if int(attempt.get("reps", 1)) != 1:
+                    continue
+
+                try:
+                    event_dt = pd.to_datetime(
+                        attempt.get("logged_at", attempt.get("date")),
+                        utc=True,
+                        errors="coerce",
+                    )
+                    if pd.isna(event_dt):
+                        continue
+                except Exception:
+                    continue
+
+                events.append(
+                    {
+                        "logged_at": event_dt,
+                        "lift_date": attempt.get("date"),
+                        "athlete": athlete,
+                        "lift_type": lift_type,
+                        "weight_kg": attempt["weight_kg"],
+                    }
+                )
+
+    if not events:
+        return pd.DataFrame()
+
+    events = sorted(events, key=lambda x: x["logged_at"])
+
+    history = []
+    current_leader = None
+    current_leader_score = None
+
+    # Process events over time
+    for event in events:
+        athlete = event["athlete"]
+        lift_type = event["lift_type"]
+        weight_kg = event["weight_kg"]
+
+        # Update running max
+        max_map[athlete][lift_type] = max(max_map[athlete][lift_type], weight_kg)
+
+        totals = {}
+
+        # Compute cumulative score for each athlete
+        for name in data:
+            user = data[name]
+            total_score = 0
+
+            for lift in all_lifts:
+                if not has_valid_base_lift(user, lift):
+                    continue
+
+                # simulate "current best" using running max
+                temp_user = {
+                    **user,
+                    "lifts": {
+                        lift: [{
+                            "weight_kg": max_map[name][lift],
+                            "reps": 1
+                        }]
+                    }
+                }
+
+                total_score += get_cumulative_pr_score(temp_user, lift)
+
+            totals[name] = total_score
+
+        max_score = max(totals.values())
+        tied_leaders = [n for n, v in totals.items() if v == max_score]
+
+        # Keep leader if tied
+        if current_leader in tied_leaders:
+            leader_name = current_leader
+        else:
+            leader_name = tied_leaders[0]
+
+        leader_score = totals[leader_name]
+
+        # Record change
+        if leader_name != current_leader or leader_score != current_leader_score:
+            history.append(
+                {
+                    "logged_at": event["logged_at"],
+                    "lift_date": event["lift_date"],
+                    "leader": leader_name,
+                    "cumulative_score": round(leader_score, 2),
+                    "trigger_athlete": athlete,
+                    "trigger_lift": lift_type,
+                    "trigger_weight": weight_kg,
+                }
+            )
+
+            current_leader = leader_name
+            current_leader_score = leader_score
+
+    return pd.DataFrame(history)
