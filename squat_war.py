@@ -22,7 +22,15 @@ from admin.supabase_client import (
     ARNOLD_DATE,
     ALL_LIFTS,
 )
-
+from utils.leaderboard import (
+    has_valid_base_lift,
+    get_best_single_attempt,
+    get_lifts_missing_baseline,
+    get_total_pr,
+    build_overall_leaderboard,
+    build_lift_leaderboard,
+    build_overall_leader_history,
+)
 st.set_page_config(
     page_title="Ultimate Troutman Training Systems Squat War 2026",
     layout="wide",
