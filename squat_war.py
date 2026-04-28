@@ -368,10 +368,10 @@ else:
 
         if overall_df.iloc[0]["Cumulative Score"] > 0:
             st.success(
-            f"👑 **BEARER OF ABSOLUTE SUPREMACY: {overall_df.iloc[0]['Name']}**\n"
-            f"🔥 Score: {overall_df.iloc[0]['Cumulative Score']:.2f} | "
-            f"💪 Total PR: {overall_df.iloc[0]['Total PR']:.1f}kg"
-        )
+                f"👑 **BEARER OF ABSOLUTE SUPREMACY: {overall_df.iloc[0]['Name']}**\n"
+                f"🔥 Score: {overall_df.iloc[0]['Cumulative Score']:.2f} | "
+                f"💪 Total PR: {overall_df.iloc[0]['Total PR']:.1f}kg"
+            )
         else:
             st.info("No PRs set yet!")
 
@@ -493,9 +493,10 @@ else:
             # ===== FILTER =====
             if st.session_state.champion_logged_in and st.session_state.current_user:
                 filter_mode = st.radio(
-                    "Show:",
+                    "Show DAWG data:",
                     ["All Athletes", "My Lifts Only"],
                     horizontal=True,
+                    key=f"dawg_filter_{lift}"
                 )
             else:
                 filter_mode = "All Athletes"
