@@ -10,13 +10,11 @@ SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 client: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 ARNOLD_DATE = date(2026, 3, 4)
-ALL_LIFTS = ["Front Squat", "Back Squat", "Pause Front Squat", "Pause Back Squat"]
+ALL_LIFTS = ["Front Squat", "Back Squat"]
 
 DEFAULT_BASE_LIFTS = {
     "Front Squat": 0,
-    "Back Squat": 0,
-    "Pause Front Squat": 0,
-    "Pause Back Squat": 0,
+    "Back Squat": 0
 }
 
 

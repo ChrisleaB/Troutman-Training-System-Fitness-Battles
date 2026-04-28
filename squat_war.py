@@ -22,7 +22,15 @@ from admin.supabase_client import (
     ARNOLD_DATE,
     ALL_LIFTS,
 )
-
+from utils.leaderboard import (
+    has_valid_base_lift,
+    get_best_single_attempt,
+    get_lifts_missing_baseline,
+    get_total_pr,
+    build_overall_leaderboard,
+    build_lift_leaderboard,
+    build_overall_leader_history,
+)
 st.set_page_config(
     page_title="Ultimate Troutman Training Systems Squat War 2026",
     layout="wide",
@@ -52,234 +60,6 @@ if "success_message" not in st.session_state:
 if "mode" not in st.session_state:
     st.session_state.mode = "home"
 
-
-def has_valid_base_lift(user_data, lift_type):
-    """A lift only counts if the athlete has a positive baseline set for that lift."""
-    return user_data.get("base_lifts", {}).get(lift_type, 0) > 0
-
-
-def get_best_single_attempt(user_data, lift_type):
-    """Return best 1-rep attempt for a lift, or None."""
-    attempts = user_data.get("lifts", {}).get(lift_type, [])
-    single_attempts = [a for a in attempts if int(a.get("reps", 1)) == 1]
-    if not single_attempts:
-        return None
-    return max(a["weight_kg"] for a in single_attempts)
-
-
-def get_lifts_missing_baseline(user_data):
-    """Return lift types that have attempts logged but no base lift set."""
-    missing = []
-    for lift_type in ALL_LIFTS:
-        if user_data.get("lifts", {}).get(lift_type) and not has_valid_base_lift(user_data, lift_type):
-            missing.append(lift_type)
-    return missing
-
-
-def get_total_pr(data, user_name, all_lifts=ALL_LIFTS):
-    """
-    Calculate total PR improvement using only 1-rep attempts.
-    Negative contributions are not counted.
-    Lifts without a valid base lift do not contribute.
-    """
-    user = data[user_name]
-    total = 0
-
-    for lift_type in all_lifts:
-        if not has_valid_base_lift(user, lift_type):
-            continue
-
-        baseline = user.get("base_lifts", {}).get(lift_type, 0)
-        best_single = get_best_single_attempt(user, lift_type)
-
-        if best_single is None:
-            contribution = 0
-        else:
-            contribution = max(0, best_single - baseline)
-
-        total += contribution
-
-    return total
-
-
-def build_overall_leaderboard(data, all_lifts=ALL_LIFTS):
-    overall_data = []
-    for name, user in data.items():
-        total_pr = get_total_pr(data, name, all_lifts)
-        overall_data.append(
-            {
-                "Rank": 0,
-                "Name": name,
-                "Total PR": total_pr,
-                "Body Weight (kg)": user.get("weight_kg", 0),
-                "Gym Affiliation": user.get("gym", "N/A"),
-            }
-        )
-
-    overall_data = sorted(overall_data, key=lambda x: x["Total PR"], reverse=True)
-    for i, row in enumerate(overall_data):
-        row["Rank"] = i + 1
-
-    return pd.DataFrame(overall_data)
-
-
-def build_lift_leaderboard(data, lift):
-    """
-    Build a lift leaderboard using only 1-rep attempts.
-    Athletes without a valid base lift for that movement are excluded.
-    """
-    leaderboard_data = []
-
-    for name, user in data.items():
-        if not has_valid_base_lift(user, lift):
-            continue
-
-        attempts = user.get("lifts", {}).get(lift, [])
-        single_attempts = [a for a in attempts if int(a.get("reps", 1)) == 1]
-
-        if single_attempts:
-            max_lift = max(single_attempts, key=lambda x: x["weight_kg"])
-            max_weight = max_lift["weight_kg"]
-            body_weight_ratio = round(max_weight / user["weight_kg"], 2)
-
-            leaderboard_data.append(
-                {
-                    "Rank": 0,
-                    "Name": name,
-                    "Weight (kg)": max_weight,
-                    "Reps": max_lift["reps"],
-                    "Body Weight (kg)": user["weight_kg"],
-                    "Ratio (Lift/BW)": body_weight_ratio,
-                    "Gym Affiliation": user.get("gym", "N/A"),
-                    "Date": max_lift["date"][:10],
-                }
-            )
-
-    if not leaderboard_data:
-        return pd.DataFrame()
-
-    lb_df = (
-        pd.DataFrame(leaderboard_data)
-        .sort_values("Weight (kg)", ascending=False)
-        .reset_index(drop=True)
-    )
-    lb_df.index = lb_df.index + 1
-    lb_df["Rank"] = lb_df.index
-    return lb_df.reset_index(drop=True)
-
-
-def build_overall_leader_history(data, all_lifts=ALL_LIFTS):
-    """
-    Tracks who held #1 overall over time.
-    Uses logged_at timestamps so the timeline reflects when submissions were made.
-    Only 1-rep attempts contribute.
-    Negative PR changes are clamped to 0.
-    Lifts without a valid base lift do not contribute.
-    """
-    if not data:
-        return pd.DataFrame()
-
-    baseline_map = {
-        athlete: {lift: user.get("base_lifts", {}).get(lift, 0) for lift in all_lifts}
-        for athlete, user in data.items()
-    }
-
-    max_map = {
-        athlete: {lift: baseline_map[athlete][lift] for lift in all_lifts}
-        for athlete in data
-    }
-
-    events = []
-    for athlete, user in data.items():
-        for lift_type, attempts in user.get("lifts", {}).items():
-            if lift_type not in all_lifts:
-                continue
-
-            if not has_valid_base_lift(user, lift_type):
-                continue
-
-            for attempt in attempts:
-                if int(attempt.get("reps", 1)) != 1:
-                    continue
-
-                try:
-                    event_dt = pd.to_datetime(
-                        attempt.get("logged_at", attempt.get("date")),
-                        utc=True,
-                        errors="coerce",
-                    )
-                    if pd.isna(event_dt):
-                        continue
-                except Exception:
-                    continue
-
-                events.append(
-                    {
-                        "logged_at": event_dt,
-                        "lift_date": attempt.get("date"),
-                        "athlete": athlete,
-                        "lift_type": lift_type,
-                        "weight_kg": attempt["weight_kg"],
-                        "reps": attempt["reps"],
-                    }
-                )
-
-    if not events:
-        return pd.DataFrame()
-
-    events = sorted(events, key=lambda x: x["logged_at"])
-
-    history = []
-    current_leader = None
-    current_leader_total = None
-
-    for event in events:
-        athlete = event["athlete"]
-        lift_type = event["lift_type"]
-        weight_kg = event["weight_kg"]
-
-        max_map[athlete][lift_type] = max(max_map[athlete][lift_type], weight_kg)
-
-        totals = {}
-        for name in data:
-            total_pr = 0
-            user = data[name]
-            for lift in all_lifts:
-                if not has_valid_base_lift(user, lift):
-                    continue
-                baseline = baseline_map[name][lift]
-                current_max = max_map[name][lift]
-                total_pr += max(0, current_max - baseline)
-            totals[name] = total_pr
-
-        max_total = max(totals.values())
-        tied_leaders = [name for name, value in totals.items() if value == max_total]
-
-        if current_leader in tied_leaders:
-            leader_name = current_leader
-        else:
-            leader_name = tied_leaders[0]
-
-        leader_total = totals[leader_name]
-
-        if leader_name != current_leader or leader_total != current_leader_total:
-            history.append(
-                {
-                    "logged_at": event["logged_at"],
-                    "lift_date": event["lift_date"],
-                    "leader": leader_name,
-                    "total_pr": leader_total,
-                    "trigger_athlete": athlete,
-                    "trigger_lift": lift_type,
-                    "trigger_weight": weight_kg,
-                }
-            )
-            current_leader = leader_name
-            current_leader_total = leader_total
-
-    return pd.DataFrame(history)
-
-
 # ===== DATA =====
 data = load_data()
 users = list(data.keys())
@@ -307,109 +87,114 @@ st.sidebar.caption(
 )
 st.sidebar.markdown("---")
 
+# Enter the Arena (only when logged out)
 if not st.session_state.champion_logged_in:
     with st.sidebar.expander("Enter the Arena Champion"):
-        new_user = st.text_input("Athlete Name:")
-        new_age = st.number_input("Age:", min_value=15, max_value=80)
-        new_weight = st.number_input("Body Weight (kg):", min_value=40, max_value=200)
+        new_user = st.sidebar.text_input("Athlete Name:")
+        new_age = st.sidebar.number_input("Age:", min_value=15, max_value=80)
+        new_weight = st.sidebar.number_input("Body Weight (kg):", min_value=40, max_value=200)
 
         gym_options = ["Troutman Training Systems", "NA", "Other"]
-        selected_gym = st.selectbox("Gym Affiliation:", gym_options)
-        st.caption("(if no affiliation --> NA)")
+        selected_gym = st.sidebar.selectbox("Gym Affiliation:", gym_options)
+        st.sidebar.caption("(if no affiliation --> NA)")
 
         if selected_gym == "Other":
-            new_gym = st.text_input("Enter gym name:")
+            new_gym = st.sidebar.text_input("Enter gym name:")
         else:
             new_gym = selected_gym
 
-        if st.button("Add", key="add_athlete"):
+        if st.sidebar.button("Add", key="add_athlete"):
             if new_user and new_user not in data:
                 ok = add_athlete(new_user, int(new_age), float(new_weight), new_gym)
                 if ok:
                     st.session_state.current_user = new_user
                     st.session_state.champion_logged_in = True
+                    st.session_state.mode = "home"  # 👈 add this
                     st.session_state.success_message = f"Champion {new_user} entered and logged in 🗡️"
                     st.session_state.just_submitted = True
                     st.rerun()
+                    
                 else:
-                    st.error("Could not add athlete.")
+                    st.sidebar.error("Could not add athlete.")
             elif new_user in data:
-                st.error(f"✗ {new_user} already exists!")
-    
+                st.sidebar.error(f"✗ {new_user} already exists!")
+
+
 # Champion login
 with st.sidebar.expander("Login Champion", expanded=False):
     if st.session_state.champion_logged_in and st.session_state.current_user in users:
-        st.success(f"Logged in as {st.session_state.current_user}")
-        st.caption("Your password is the same as your name/username.")
+        st.sidebar.success(f"Logged in as {st.session_state.current_user}")
+        st.sidebar.caption("Your password is the same as your name/username.")
 
-        if st.button("Logout Champion", key="champion_logout"):
+        if st.sidebar.button("Logout Champion", key="champion_logout"):
             st.session_state.champion_logged_in = False
             st.session_state.current_user = None
             st.session_state.mode = "home"
             st.rerun()
     else:
-        login_user = st.selectbox(
+        login_user = st.sidebar.selectbox(
             "Select your name:",
             users if users else ["No users yet"],
             key="champion_login_user",
         )
-        login_password = st.text_input("Password:", type="password", key="champion_login_pass")
-        st.caption("Your password is the same as your name/username.")
+        login_password = st.sidebar.text_input("Password:", type="password", key="champion_login_pass")
+        st.sidebar.caption("Your password is the same as your name/username.")
 
-        if st.button("Login Champion", key="champion_login_btn"):
+        if st.sidebar.button("Login Champion", key="champion_login_btn"):
             if login_user in data and login_password == login_user:
                 st.session_state.current_user = login_user
                 st.session_state.champion_logged_in = True
                 st.session_state.mode = "home"
                 st.rerun()
             else:
-                st.error("Incorrect name or password.")
+                st.sidebar.error("Incorrect name or password.")
+
 
 # Admin login
 with st.sidebar.expander("Admin", expanded=False):
     if not st.session_state.get("admin_logged_in", False):
-        admin_password = st.text_input("Password:", type="password", key="admin_pass")
+        admin_password = st.sidebar.text_input("Password:", type="password", key="admin_pass")
 
-        if st.button("Login", key="admin_login"):
+        if st.sidebar.button("Login", key="admin_login"):
             if admin_password == "user":
                 st.session_state.admin_logged_in = True
                 st.rerun()
             else:
-                st.error("✗ Incorrect password")
+                st.sidebar.error("✗ Incorrect password")
     else:
-        st.success("✓ Admin logged in")
-        st.markdown("---")
-        st.markdown("**Admin Controls**")
+        st.sidebar.success("✓ Admin logged in")
+        st.sidebar.markdown("---")
+        st.sidebar.markdown("**Admin Controls**")
 
-        st.warning("⚠️ CAUTION: These actions cannot be undone!")
+        st.sidebar.warning("⚠️ CAUTION: These actions cannot be undone!")
 
-        clear_user = st.selectbox("Select user to clear data:", users if users else ["No users"])
+        clear_user = st.sidebar.selectbox("Select user to clear data:", users if users else ["No users"])
 
-        if st.button("Clear User Data", key="clear_user_data"):
+        if st.sidebar.button("Clear User Data", key="clear_user_data"):
             if clear_user and clear_user in data:
                 delete_athlete_lifts(clear_user)
                 st.session_state.just_submitted = True
                 st.rerun()
 
-        st.markdown("---")
-        st.markdown("**Delete Athlete**")
+        st.sidebar.markdown("---")
+        st.sidebar.markdown("**Delete Athlete**")
 
-        delete_user = st.selectbox("Select athlete to delete:", users if users else ["No users"])
-        confirm_delete = st.checkbox("I understand this permanently deletes the athlete")
+        delete_user = st.sidebar.selectbox("Select athlete to delete:", users if users else ["No users"])
+        confirm_delete = st.sidebar.checkbox("I understand this permanently deletes the athlete")
 
-        if st.button("Delete Athlete", key="delete_athlete_btn"):
+        if st.sidebar.button("Delete Athlete", key="delete_athlete_btn"):
             if not confirm_delete:
-                st.warning("Please confirm deletion first.")
+                st.sidebar.warning("Please confirm deletion first.")
             elif delete_user and delete_user in data:
                 success = delete_athlete(delete_user)
                 if success:
                     st.session_state.just_submitted = True
                     st.rerun()
                 else:
-                    st.error("Failed to delete athlete.")
+                    st.sidebar.error("Failed to delete athlete.")
 
-        st.markdown("---")
-        if st.button("Logout", key="admin_logout"):
+        st.sidebar.markdown("---")
+        if st.sidebar.button("Logout", key="admin_logout"):
             st.session_state.admin_logged_in = False
             st.rerun()
 # Page navigation
