@@ -611,7 +611,8 @@ else:
             
                         medals = ["🥇", "🥈", "🥉", "🐕", "🐕"]
                         for i, row in display_df.iterrows():
-                            st.markdown(f"{medals[i]} **{row['Name']}** — {row['Lift']}")
+                            medal = medals[i] if i < len(medals) else "🐕"
+                            st.markdown(f"{medal} **{row['Name']}** — {row['Lift']}")
                     else:
                         st.info("No DAWG data yet.")
             
