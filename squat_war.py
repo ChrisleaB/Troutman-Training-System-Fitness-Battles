@@ -30,7 +30,9 @@ from utils.leaderboard import (
     build_overall_leaderboard,
     build_lift_leaderboard,
     build_overall_leader_history,
-    build_estimated_1rm_history
+    build_estimated_1rm_history,
+    get_cumulative_pr_score, 
+    get_total_cumulative_score
 )
 st.set_page_config(
     page_title="Ultimate Troutman Training Systems Squat War 2026",
@@ -338,16 +340,38 @@ else:
     # ===== OVERALL CHAMPION =====
     overall_df = build_overall_leaderboard(data)
 
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.metric(
+            label="Total PR",
+            value="",
+            help="Total PR = Back Squat 1RM PR + Front Squat 1RM PR\n\nOnly counts improvements over baseline"
+        )
+    
+    with col2:
+        st.metric(
+            label="Cumulative Score",
+            value="",
+            help=(
+                "Cumulative Score = 0.4 × PR Gain\n"
+                "+ 0.3 × (1RM / Bodyweight)\n"
+                "+ 0.3 × (Estimated 1RM / Baseline)\n\n"
+                "- Estimated term only counts if > baseline\n"
+                "- Missing values count as 0"
+            )
+        )
     st.subheader("REIGNING CHAMPIONS")
 
     if not overall_df.empty:
         st.dataframe(overall_df, use_container_width=True)
 
-        if overall_df.iloc[0]["Total PR"] > 0:
+        if overall_df.iloc[0]["Cumulative Score"] > 0:
             st.success(
-                f" **BEARER OF ABSOLUTE SUPREMACY: {overall_df.iloc[0]['Name']}** "
-                f"with {overall_df.iloc[0]['Total PR']}kg total PR improvement!"
-            )
+            f"👑 **BEARER OF ABSOLUTE SUPREMACY: {overall_df.iloc[0]['Name']}**\n"
+            f"🔥 Score: {overall_df.iloc[0]['Cumulative Score']:.2f} | "
+            f"💪 Total PR: {overall_df.iloc[0]['Total PR']:.1f}kg"
+        )
         else:
             st.info("No PRs set yet!")
 
@@ -362,12 +386,13 @@ else:
         history_df["logged_at_str"] = history_df["logged_at"].dt.strftime("%Y-%m-%d %H:%M UTC")
 
         history_display = history_df[
-            ["logged_at_str", "leader", "total_pr", "trigger_athlete", "trigger_lift", "trigger_weight"]
+            ["logged_at_str", "leader", "cumulative_score", "trigger_athlete", "trigger_lift", "trigger_weight"]
         ].copy()
+        
         history_display.columns = [
             "Logged At",
             "Leader",
-            "Total PR",
+            "Cumulative Score",
             "Trigger Athlete",
             "Trigger Lift",
             "Trigger Weight (kg)",
@@ -377,21 +402,21 @@ else:
         fig.add_trace(
             go.Scatter(
                 x=history_df["logged_at"],
-                y=history_df["total_pr"],
+                y=history_df["cumulative_score"],
                 mode="lines+markers+text",
                 text=history_df["leader"],
                 textposition="top center",
                 hovertemplate=(
                     "Logged At: %{x|%Y-%m-%d %H:%M}<br>"
                     "Leader: %{text}<br>"
-                    "Total PR: %{y}kg<extra></extra>"
+                    "Score: %{y:.2f}<extra></extra>"
                 ),
             )
         )
         fig.update_layout(
             title="History of the #1 Overall Leader",
             xaxis_title="Logged At",
-            yaxis_title="Leader's Total PR (kg)",
+            yaxis_title="Leader's Cumulative Score",
             showlegend=False,
         )
 
