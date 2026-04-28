@@ -540,8 +540,8 @@ else:
                 # ===== BUCKETED SIZES =====
                 df_scatter["Size"] = pd.cut(
                     df_scatter["EffortScaled"],
-                    bins=[0, 2, 4, 6, 8],
-                    labels=[6, 10, 14, 20]
+                    bins=[0, 1, 2, 3, 4, 5, 6, 7, 8],
+                    labels=[1, 2, 4, 7, 10, 15, 18, 21]
                 ).astype(float)
             
                 df_scatter["Size"] = df_scatter["Size"].fillna(10)
