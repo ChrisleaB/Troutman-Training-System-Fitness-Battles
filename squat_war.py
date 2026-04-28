@@ -356,7 +356,7 @@ else:
             help=(
                 "Cumulative Score = 0.4 × PR Gain\n"
                 "+ 0.3 × (1RM / Bodyweight)\n"
-                "+ 0.3 × (Estimated 1RM / Baseline)\n\n"
+                "+ 0.3 × [(Estimated 1RM / Baseline)-1]\n\n"
                 "- Estimated term only counts if > baseline\n"
                 "- Missing values count as 0"
             )
@@ -433,17 +433,6 @@ else:
 
     for tab, lift in zip(lift_tabs, ALL_LIFTS):
         with tab:
-            # ===== FILTER =====
-            if st.session_state.champion_logged_in and st.session_state.current_user:
-                filter_mode = st.radio(
-                    "Show:",
-                    ["All Athletes", "My Lifts Only"],
-                    horizontal=True,
-                )
-            else:
-                filter_mode = "All Athletes"
-            st.markdown(f"### {lift} Leaderboard")
-
             lb_df = build_lift_leaderboard(data, lift)
 
             if not lb_df.empty:
@@ -501,6 +490,15 @@ else:
                 st.info("No multi-rep data available for estimated 1RM tracking.")
             st.markdown("---")
             st.markdown("#### Who's got that DAWG in them")
+            # ===== FILTER =====
+            if st.session_state.champion_logged_in and st.session_state.current_user:
+                filter_mode = st.radio(
+                    "Show:",
+                    ["All Athletes", "My Lifts Only"],
+                    horizontal=True,
+                )
+            else:
+                filter_mode = "All Athletes"
             
             scatter_data = []
             
