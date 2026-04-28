@@ -1,6 +1,75 @@
 import pandas as pd
 from admin.supabase_client import ALL_LIFTS
 
+REP_PERCENT_MAP = {
+    2: 0.95,
+    3: 0.925,
+    4: 0.90,
+    5: 0.875,
+    6: 0.86,
+    8: 0.75,
+    10: 0.70,
+}
+
+
+def estimate_1rm_from_map(weight, reps):
+    """Estimate 1RM using your custom rep % map."""
+    reps = int(reps)
+
+    if reps <= 1:
+        return weight  # treat singles as actual max if needed
+
+    pct = REP_PERCENT_MAP.get(reps)
+
+    if pct:
+        return weight / pct
+
+    # fallback to Epley if rep not in map
+    return weight * (1 + reps / 30)
+
+
+def build_estimated_1rm_history(data, user_name, lift_type):
+    """
+    Returns dataframe of estimated 1RM progression vs baseline using REP_PERCENT_MAP
+    """
+    user = data.get(user_name, {})
+    lifts = user.get("lifts", {}).get(lift_type, [])
+
+    if not lifts:
+        return pd.DataFrame()
+
+    baseline = user.get("base_lifts", {}).get(lift_type, 0)
+
+    if baseline <= 0:
+        return pd.DataFrame()
+
+    records = []
+
+    for attempt in lifts:
+        reps = int(attempt.get("reps", 1))
+        weight = float(attempt.get("weight_kg", 0))
+
+        # only use 2+ reps for estimated curve
+        if reps <= 1:
+            continue
+
+        est_1rm = estimate_1rm_from_map(weight, reps)
+
+        records.append({
+            "date": pd.to_datetime(attempt.get("date")),
+            "estimated_1rm": est_1rm,
+            "baseline": baseline,
+            "pct_of_baseline": est_1rm / baseline,
+            "athlete": user_name,
+        })
+
+    if not records:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(records).sort_values("date")
+
+    return df
+
 def has_valid_base_lift(user_data, lift_type):
     """A lift only counts if the athlete has a positive baseline set for that lift."""
     return user_data.get("base_lifts", {}).get(lift_type, 0) > 0
