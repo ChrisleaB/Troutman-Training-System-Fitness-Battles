@@ -28,8 +28,8 @@ def load_data() -> Dict[str, Any]:
             athletes[row["name"]] = {
                 "age": row.get("age", 0),
                 "weight_kg": row.get("weight_kg", 0),
-                "gym": row.get("gym", "NA"),
-                "base_lifts": row.get("base_lifts") or DEFAULT_BASE_LIFTS.copy(),
+                "gym": row.get("gym") or "NA",
+                "base_lifts": {**DEFAULT_BASE_LIFTS, **(row.get("base_lifts") or {})},
                 "lifts": row.get("lifts") or {},
                 "created": row.get("created_at"),
             }
@@ -40,30 +40,30 @@ def load_data() -> Dict[str, Any]:
         return {}
 
 
-def save_data(data: Dict[str, Any]) -> None:
-    """Overwrite all athlete rows in Supabase with the current local state."""
-    try:
-        client.table("athletes").delete().neq("id", 0).execute()
+#def save_data(data: Dict[str, Any]) -> None:
+ #   """Overwrite all athlete rows in Supabase with the current local state."""
+  #  try:
+   #     client.table("athletes").delete().neq("id", 0).execute()
+#
+ #       rows = []
+  #      for name, user_data in data.items():
+   #         rows.append(
+    #            {
+     #               "name": name,
+      #              "age": user_data.get("age", 0),
+       #             "weight_kg": user_data.get("weight_kg", 0),
+        #            "gym": user_data.get("gym", "NA"),
+         #           "base_lifts": user_data.get("base_lifts", DEFAULT_BASE_LIFTS.copy()),
+          #          "lifts": user_data.get("lifts", {}),
+           #         "created_at": user_data.get("created", datetime.now().isoformat()),
+            #    }
+            #)
 
-        rows = []
-        for name, user_data in data.items():
-            rows.append(
-                {
-                    "name": name,
-                    "age": user_data.get("age", 0),
-                    "weight_kg": user_data.get("weight_kg", 0),
-                    "gym": user_data.get("gym", "NA"),
-                    "base_lifts": user_data.get("base_lifts", DEFAULT_BASE_LIFTS.copy()),
-                    "lifts": user_data.get("lifts", {}),
-                    "created_at": user_data.get("created", datetime.now().isoformat()),
-                }
-            )
+        #if rows:
+         #   client.table("athletes").insert(rows).execute()
 
-        if rows:
-            client.table("athletes").insert(rows).execute()
-
-    except Exception as e:
-        print(f"Error saving data: {e}")
+   # except Exception as e:
+    #    print(f"Error saving data: {e}")
 
 
 def add_athlete(name: str, age: int, weight_kg: float, gym: str) -> bool:
@@ -116,8 +116,11 @@ def update_athlete(name: str, age: int, weight_kg: float, gym: str) -> bool:
 def add_lift(name: str, lift_type: str, weight_kg: float, reps: int, lift_date: date) -> bool:
     """Add a lift for an athlete."""
     try:
-        if reps > 10:
-            raise ValueError("while you may be strong, this app is not and cannot support greater than 10 reps")
+        if not (1 <= reps <= 10):
+            raise ValueError("Reps must be between 1 and 10")
+        
+        if weight_kg <= 0:
+            raise ValueError("Weight must be a positive number")
 
         client.rpc(
             "append_lift",
