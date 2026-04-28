@@ -10,7 +10,6 @@ import pandas as pd
 from datetime import datetime
 import plotly.express as px
 import plotly.graph_objects as go
-
 from admin.supabase_client import (
     load_data,
     add_athlete,
@@ -30,6 +29,7 @@ from utils.leaderboard import (
     build_overall_leaderboard,
     build_lift_leaderboard,
     build_overall_leader_history,
+    build_estimated_1rm_history
 )
 st.set_page_config(
     page_title="Ultimate Troutman Training Systems Squat War 2026",
@@ -432,6 +432,38 @@ else:
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info(f"No athletes with a valid base lift and 1-rep attempt for {lift} yet.")
+            # ===== NEW SECTION: Estimated 1RM Tracker =====
+            st.markdown("---")
+            st.markdown("#### Estimated 1RM Progression (% of Baseline)")
+    
+            all_est_data = []
+    
+            for name in data.keys():
+                df_est = build_estimated_1rm_history(data, name, lift)
+    
+                if not df_est.empty:
+                    all_est_data.append(df_est)
+    
+            if all_est_data:
+                combined_df = pd.concat(all_est_data)
+    
+                fig_est = px.line(
+                    combined_df,
+                    x="date",
+                    y="pct_of_baseline",
+                    color="athlete",
+                    markers=True,
+                    title=f"{lift} Estimated 1RM (% of Baseline)",
+                )
+    
+                fig_est.update_layout(
+                    yaxis_title="% of Baseline",
+                    xaxis_title="Date",
+                )
+    
+                st.plotly_chart(fig_est, use_container_width=True)
+            else:
+                st.info("No multi-rep data available for estimated 1RM tracking.")
 
 st.markdown("---")
 st.caption("Ultimate Troutman Training System's Squat War 2026 - May the gains be ever in your favor ⚔️")
