@@ -25,7 +25,7 @@ def load_data() -> Dict[str, Any]:
         athletes: Dict[str, Any] = {}
 
         for row in response.data:
-            name = row["name"].strip()
+            name = row["name"]
         
             athletes[name] = {  # ✅ use cleaned name
                 "age": row.get("age", 0),
