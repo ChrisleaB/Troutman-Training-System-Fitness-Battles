@@ -678,7 +678,7 @@ else:
                             "Effort": ":.2f",
                             "Size": False,
                         },
-                        title=f"{lift} — Who's got that DAWG in them",
+                        title=f"{lift} — DAWG INDEX",
                     )
             
                     st.caption("Gold ring = >2x BW | Red ring = SUPER DAWG")
@@ -736,7 +736,7 @@ else:
             
                 # ===== TOP 5 DAWG TABLE =====
                 with col2:
-                    st.markdown("### 🐶 DAWG Index")
+                    st.markdown("### 🐶 TOP DAWGS")
             
                     # sort + take top 5
                     top_df = df_scatter.sort_values("Effort", ascending=False).head(5).copy()
