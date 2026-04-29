@@ -556,7 +556,7 @@ else:
                 st.info(f"No athletes with a valid base lift and 1-rep attempt for {lift} yet.")
             # ===== NEW SECTION: Estimated 1RM Tracker =====
             st.markdown("---")
-            st.markdown("## Estimated 1RM Progression (% of Baseline)")
+            st.markdown("### Estimated 1RM Progression (% of Baseline)")
     
             all_est_data = []
     
@@ -588,7 +588,7 @@ else:
                 st.info("No multi-rep data available for estimated 1RM tracking.")
             
             st.markdown("---")
-            st.markdown("## Who's got that DAWG in them")
+            st.markdown("### Who's got that DAWG in them")
             
             # ===== FILTER =====
             if st.session_state.champion_logged_in and st.session_state.current_user:
