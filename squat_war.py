@@ -484,7 +484,7 @@ st.title("⚔️ Ultimate Troutman Training Systems (and Associates) Squat War 2
 st.markdown(
     """
     <p style='color:#CBA6F7; font-size:25px; margin-bottom:5px;'>
-    Rules: All lifts POST-Arnold (March 4, 2026 onwards) are valid submissions
+    Rules: All lifts POST-Arnold (March 4, 2026 onwards) are valid submissions (pause squats don't count)!
     </p>
 
     <p style='color:#D4AF37; font-size:15px;'>
@@ -516,10 +516,9 @@ else:
             label="Cumulative Score",
             value="",
             help=(
-                "Cumulative Score = 0.4 × PR Gain\n"
-                "+ 0.3 × (1RM / Bodyweight)\n"
-                "+ 0.3 × [(Estimated 1RM / Baseline)-1]\n\n"
-                "- Estimated term only counts if > baseline\n"
+                "Cumulative Score = 0.4 × PR Gain + 0.3 × (1RM / Bodyweight) + 0.3 × [(Estimated 1RM / Baseline)-1]\n\n"
+                " Leaderboard cumulative score = back squat score + front squat score\n"
+                "- Estimated 1RM (from 2+ rep submissions)term only counts if > baseline\n"
                 "- Missing values count as 0"
             )
         )
