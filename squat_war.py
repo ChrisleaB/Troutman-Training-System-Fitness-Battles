@@ -12,6 +12,7 @@ from datetime import datetime
 import plotly.express as px
 import plotly.graph_objects as go
 from admin.supabase_client import (
+    client,    
     load_data,
     add_athlete,
     update_athlete,
@@ -161,6 +162,7 @@ with st.sidebar.expander("Admin", expanded=False):
                 st.rerun()
             else:
                 st.error("✗ Incorrect password")
+
     else:
         st.success("✓ Admin logged in")
         st.markdown("---")
@@ -168,7 +170,11 @@ with st.sidebar.expander("Admin", expanded=False):
 
         st.warning("⚠️ CAUTION: These actions cannot be undone!")
 
-        clear_user = st.selectbox("Select user to clear data:", users if users else ["No users"])
+        # ===== CLEAR USER =====
+        clear_user = st.selectbox(
+            "Select user to clear data:",
+            users if users else ["No users"]
+        )
 
         if st.button("Clear User Data", key="clear_user_data"):
             if clear_user and clear_user in data:
@@ -176,11 +182,102 @@ with st.sidebar.expander("Admin", expanded=False):
                 st.session_state.just_submitted = True
                 st.rerun()
 
+        # ===== EDIT / DELETE LIFTS =====
+        st.markdown("---")
+        st.markdown("**Edit / Delete Individual Lifts**")
+
+        edit_user = st.selectbox(
+            "Select athlete:",
+            users if users else ["No users"],
+            key="admin_edit_user"
+        )
+
+        if edit_user in data:
+            user_data = data[edit_user]
+
+            lift_type = st.selectbox(
+                "Select lift type:",
+                ALL_LIFTS,
+                key="admin_lift_type"
+            )
+
+            attempts = user_data.get("lifts", {}).get(lift_type, [])
+
+            if attempts:
+                for i, attempt in enumerate(attempts):
+
+                    unique_key = f"{edit_user}_{lift_type}_{i}"
+
+                    with st.expander(
+                        f"{attempt['weight_kg']}kg × {attempt['reps']} ({attempt.get('date','')})"
+                    ):
+
+                        new_weight = st.number_input(
+                            "Weight (kg)",
+                            value=float(attempt["weight_kg"]),
+                            key=f"edit_weight_{unique_key}"
+                        )
+
+                        new_reps = st.number_input(
+                            "Reps",
+                            value=int(attempt["reps"]),
+                            key=f"edit_reps_{unique_key}"
+                        )
+
+                        new_date = st.date_input(
+                            "Date",
+                            value=pd.to_datetime(
+                                attempt.get("date", datetime.now())
+                            ).date(),
+                            key=f"edit_date_{unique_key}"
+                        )
+
+                        col1, col2 = st.columns(2)
+
+                        # ✏️ EDIT
+                        with col1:
+                            if st.button("Save Edit", key=f"save_edit_{unique_key}"):
+                                attempts[i] = {
+                                    **attempt,
+                                    "weight_kg": float(new_weight),
+                                    "reps": int(new_reps),
+                                    "date": new_date.isoformat()
+                                }
+
+                                client.table("athletes").update(
+                                    {"lifts": user_data["lifts"]}
+                                ).eq("name", edit_user).execute()
+
+                                st.success("Lift updated")
+                                st.rerun()
+
+                        # 🗑 DELETE
+                        with col2:
+                            if st.button("Delete Lift", key=f"delete_lift_{unique_key}"):
+                                attempts.pop(i)
+
+                                client.table("athletes").update(
+                                    {"lifts": user_data["lifts"]}
+                                ).eq("name", edit_user).execute()
+
+                                st.success("Lift deleted")
+                                st.rerun()
+
+            else:
+                st.info("No lifts recorded for this movement.")
+
+        # ===== DELETE ATHLETE =====
         st.markdown("---")
         st.markdown("**Delete Athlete**")
 
-        delete_user = st.selectbox("Select athlete to delete:", users if users else ["No users"])
-        confirm_delete = st.checkbox("I understand this permanently deletes the athlete")
+        delete_user = st.selectbox(
+            "Select athlete to delete:",
+            users if users else ["No users"]
+        )
+
+        confirm_delete = st.checkbox(
+            "I understand this permanently deletes the athlete"
+        )
 
         if st.button("Delete Athlete", key="delete_athlete_btn"):
             if not confirm_delete:
@@ -193,6 +290,7 @@ with st.sidebar.expander("Admin", expanded=False):
                 else:
                     st.error("Failed to delete athlete.")
 
+        # ===== LOGOUT =====
         st.markdown("---")
         if st.button("Logout", key="admin_logout"):
             st.session_state.admin_logged_in = False
@@ -510,7 +608,7 @@ else:
                     continue
             
                 attempts = user.get("lifts", {}).get(lift, [])
-                bw = user.get("weight_kg", 1)
+                bw = max(user.get("weight_kg", 1), 1)
                 baseline = user.get("base_lifts", {}).get(lift, 1)
             
                 if baseline <= 0:
@@ -541,7 +639,7 @@ else:
                 df_scatter["Size"] = pd.cut(
                     df_scatter["EffortScaled"],
                     bins=[0, 1, 2, 3, 4, 5, 6, 7, 8],
-                    labels=[1, 2, 4, 7, 10, 15, 18, 21]
+                    labels=[4, 6, 8, 10, 12, 14, 16, 18]
                 ).astype(float)
             
                 df_scatter["Size"] = df_scatter["Size"].fillna(4)
@@ -556,10 +654,11 @@ else:
                         "ℹ️ How to read this chart",
                         help=(
                             "Dot size = effort (scaled 1–8)\n\n"
+                            "Effort = (weight ÷ baseline) × reps\n\n"
                             "Color = relative strength (weight ÷ bodyweight)\n\n"
                             "Gold ring = >2x bodyweight\n"
-                            "Red ring = SUPER DAWG (10+ effort)\n\n"
-                            "Effort = (weight ÷ baseline) × reps"
+                            "Red ring = SUPER DAWG STATUS (10+ effort)"
+                            
                         )
                     )
             
@@ -568,7 +667,7 @@ else:
                         x="Reps",
                         y="Weight",
                         size="Size",
-                        size_max=24,
+                        size_max=20,
                         color="RelStrength",
                         color_continuous_scale="plasma",
                         hover_name="Name",
@@ -587,8 +686,9 @@ else:
                     fig.update_traces(
                         marker=dict(
                             opacity=0.75,
-                            line=dict(width=1, color="white")
-                        )
+                            line=dict(width=0)  # 👈 removes default border
+                        ),
+                        marker_sizemode="diameter"
                     )
             
                     # ===== ELITE (gold) =====
@@ -615,7 +715,7 @@ else:
                                 y=[row["Weight"]],
                                 mode="markers",
                                 marker=dict(
-                                    size=row["Size"] + 10,
+                                    size=min(row["Size"] + 6, 24),
                                     color="rgba(0,0,0,0)",
                                     line=dict(color="red", width=4),
                                 ),
@@ -638,23 +738,26 @@ else:
                 with col2:
                     st.markdown("### 🐶 DAWG Index")
             
+                    # sort + take top 5
                     top_df = df_scatter.sort_values("Effort", ascending=False).head(5).copy()
-            
+                    
                     if not top_df.empty:
                         top_df["Lift"] = top_df.apply(
                             lambda r: f"{int(r['Weight'])}kg × {int(r['Reps'])}",
                             axis=1
                         )
-            
-                        display_df = top_df[["Name", "Lift", "Effort"]].copy()
-                        display_df["Effort"] = display_df["Effort"].round(2)
-            
-                        st.dataframe(display_df, use_container_width=True, height=250)
-            
-                        medals = ["🥇", "🥈", "🥉", "🐕", "🐕"]
-                        for i, row in display_df.iterrows():
-                            medal = medals[i] if i < len(medals) else "🐕"
-                            st.markdown(f"{medal} **{row['Name']}** — {row['Lift']}")
+                    
+                        # 🔥 DAWG ranking emojis (by position)
+                        dawg_ranks = ["🐺🔥", "🐺", "🐕‍🦺", "🐕", "🐶"]
+                    
+                        for rank, (_, row) in enumerate(top_df.iterrows()):
+                            emoji = dawg_ranks[rank] if rank < len(dawg_ranks) else "🐾"
+                    
+                            st.markdown(
+                                f"{emoji} **{row['Name']}** — {row['Lift']}  \n"
+                                f"<span style='color:#888'>Effort: {row['Effort']:.2f}</span>",
+                                unsafe_allow_html=True
+                            )
                     else:
                         st.info("No DAWG data yet.")
             
