@@ -138,7 +138,7 @@ if not st.session_state.champion_logged_in:
 with st.sidebar.expander("Login Champion", expanded=False):
     if st.session_state.champion_logged_in and st.session_state.current_user in users:
         st.success(f"Logged in as {st.session_state.current_user}")
-        st.caption("Your password is the same as your name/username.")
+        st.caption("Enter your password (default is your name unless changed).")
 
         if st.button("Logout Champion", key="champion_logout"):
             st.session_state.champion_logged_in = False
@@ -153,7 +153,6 @@ with st.sidebar.expander("Login Champion", expanded=False):
             key="champion_login_user",
         )
 
-        # 🔥 Autofill password with selected name
         login_password = st.text_input(
             "Password:",
             value=login_user if login_user in users else "",
@@ -161,14 +160,14 @@ with st.sidebar.expander("Login Champion", expanded=False):
             key="champion_login_pass",
         )
 
-        st.caption("Your password is the same as your name/username.")
+        st.caption("Enter your password (default is your name unless changed).")
 
         if st.button("Login Champion", key="champion_login_btn"):
             if login_user in data:
-                user_clean = login_user.strip().lower()
-                password_clean = (login_password or "").strip().lower()
+                password_clean = (login_password or "").strip()
+                stored_password = (data[login_user].get("password") or login_user).strip()
 
-                if password_clean == user_clean:
+                if password_clean == stored_password:
                     st.session_state.current_user = login_user
                     st.session_state.champion_logged_in = True
                     st.session_state.mode = "home"
@@ -293,7 +292,7 @@ with st.sidebar.expander("Admin", expanded=False):
             else:
                 st.info("No lifts recorded for this movement.")
        
-        ## Password reset ###
+        # ===== PASSWORD RESET =====
         st.markdown("---")
         st.markdown("**Reset Champion Password**")
         
@@ -304,7 +303,8 @@ with st.sidebar.expander("Admin", expanded=False):
         )
         
         if reset_user in data:
-            current_password = data[reset_user].get("password", reset_user)
+            # 🔥 normalize + fallback
+            current_password = (data[reset_user].get("password") or reset_user).strip()
         
             st.info(f"Current password: {current_password}")
         
@@ -315,11 +315,14 @@ with st.sidebar.expander("Admin", expanded=False):
             )
         
             if st.button("Update Password", key="update_password_btn"):
-                if new_password:
-                    data[reset_user]["password"] = new_password
+                clean_pw = (new_password or "").strip()
+        
+                if clean_pw:
+                    # 🔥 update local + DB consistently
+                    data[reset_user]["password"] = clean_pw
         
                     client.table("athletes").update(
-                        {"password": new_password}
+                        {"password": clean_pw}
                     ).eq("name", reset_user).execute()
         
                     st.success("Password updated successfully")
