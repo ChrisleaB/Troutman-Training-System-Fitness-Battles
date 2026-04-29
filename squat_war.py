@@ -752,9 +752,9 @@ else:
                     
                         for rank, (_, row) in enumerate(top_df.iterrows()):
                             emoji = dawg_ranks[rank] if rank < len(dawg_ranks) else "🐾"
-                    
+                            name = row["Name"].replace("*", "")
                             st.markdown(
-                                f"{emoji} **{row['Name']}** — {row['Lift']}  \n"
+                                f"{emoji} **{name}** — {row['Lift']}  \n"
                                 f"<span style='color:#888'>Effort: {row['Effort']:.2f}</span>",
                                 unsafe_allow_html=True
                             )
