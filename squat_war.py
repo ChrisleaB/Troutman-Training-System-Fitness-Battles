@@ -639,7 +639,7 @@ else:
                 df_scatter["Size"] = pd.cut(
                     df_scatter["EffortScaled"],
                     bins=[0, 1, 2, 3, 4, 5, 6, 7, 8],
-                    labels=[4, 6, 8, 10, 12, 14, 16, 18]
+                    labels= [4, 7, 11, 16, 22, 29, 37, 46]
                 ).astype(float)
             
                 df_scatter["Size"] = df_scatter["Size"].fillna(4)
