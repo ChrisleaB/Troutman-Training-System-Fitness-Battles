@@ -678,7 +678,7 @@ else:
                 if baseline <= 0:
                     continue
             
-               for a in attempts:
+                for a in attempts:
                     weight = float(a.get("weight_kg", 0))
                     reps = int(a.get("reps", 1))
             
