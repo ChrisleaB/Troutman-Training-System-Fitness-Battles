@@ -666,7 +666,7 @@ else:
                         df_scatter,
                         x="Reps",
                         y="Weight",
-                        size="Size",
+                        size=None,
                         size_max=20,
                         color="RelStrength",
                         color_continuous_scale="plasma",
@@ -685,10 +685,10 @@ else:
             
                     fig.update_traces(
                         marker=dict(
+                            size=df_scatter["Size"],   # 👈 direct pixel control
                             opacity=0.75,
-                            line=dict(width=0)  # 👈 removes default border
-                        ),
-                        marker_sizemode="diameter"
+                            line=dict(width=0)
+                        )
                     )
             
                     # ===== ELITE (gold) =====
