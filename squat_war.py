@@ -650,7 +650,7 @@ else:
             
                 # ===== CHART =====
                 with col1:
-                    st.write(
+                    st.subheader(
                         "ℹ️ How to read this chart",
                         help=(
                             "Dot size = effort (scaled 1–8)\n\n"
