@@ -679,20 +679,26 @@ else:
                     continue
             
                 for a in attempts:
-                    weight = float(a.get("weight_kg", 0))
-                    reps = int(a.get("reps", 1))
-            
+                    try:
+                        weight = float(a.get("weight_kg", 0))
+                        reps = int(a.get("reps", 1))
+                    except (TypeError, ValueError):
+                        continue  # skip bad entries
+                
+                    if weight <= 0 or reps <= 0:
+                        continue
+                
                     effort_raw = (weight / baseline) * reps
-                    effort_scaled = min(effort_raw, 8)  # 🔥 cap at 8
+                    effort_scaled = min(effort_raw, 8)
                     rel_strength = weight / bw
-            
+                
                     scatter_data.append({
                         "Name": name,
                         "Reps": reps,
                         "Weight": weight,
                         "Effort": effort_raw,
                         "EffortScaled": effort_scaled,
-                        "SuperDawg": effort_raw >= 10,  # 🔥 elite flag
+                        "SuperDawg": effort_raw >= 10,
                         "RelStrength": rel_strength,
                     })
             
