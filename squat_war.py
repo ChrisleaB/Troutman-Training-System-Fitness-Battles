@@ -108,19 +108,31 @@ if not st.session_state.champion_logged_in:
             new_gym = selected_gym
 
         if st.button("Add", key="add_athlete"):
-            if new_user and new_user not in data:
-                ok = add_athlete(new_user, int(new_age), float(new_weight), new_gym)
-                if ok:
-                    st.session_state.current_user = new_user
-                    st.session_state.champion_logged_in = True
-                    st.session_state.mode = "home" 
-                    st.session_state.success_message = f"Champion {new_user} entered and logged in 🗡️"
-                    st.session_state.just_submitted = True
-                    st.rerun()
+            if new_user:
+                # 🔥 CLEAN USERNAME
+                clean_user = new_user.strip()
+        
+                # Optional: enforce consistent casing
+                # clean_user = clean_user.title()
+        
+                # Check against cleaned existing users
+                existing_users = [u.strip().lower() for u in data.keys()]
+        
+                if clean_user.lower() not in existing_users:
+                    ok = add_athlete(clean_user, int(new_age), float(new_weight), new_gym)
+        
+                    if ok:
+                        st.session_state.current_user = clean_user
+                        st.session_state.champion_logged_in = True
+                        st.session_state.mode = "home"
+                        st.session_state.success_message = f"Champion {clean_user} entered and logged in 🗡️"
+                        st.session_state.just_submitted = True
+                        st.rerun()
+                    else:
+                        st.error("Could not add athlete.")
+        
                 else:
-                    st.error("Could not add athlete.")
-            elif new_user in data:
-                st.error(f"✗ {new_user} already exists!")
+                    st.error(f"✗ {clean_user} already exists!")
     
 # Champion login
 with st.sidebar.expander("Login Champion", expanded=False):
@@ -133,23 +145,38 @@ with st.sidebar.expander("Login Champion", expanded=False):
             st.session_state.current_user = None
             st.session_state.mode = "home"
             st.rerun()
+
     else:
         login_user = st.selectbox(
             "Select your name:",
             users if users else ["No users yet"],
             key="champion_login_user",
         )
-        login_password = st.text_input("Password:", type="password", key="champion_login_pass")
+
+        # 🔥 Autofill password with selected name
+        login_password = st.text_input(
+            "Password:",
+            value=login_user if login_user in users else "",
+            type="password",
+            key="champion_login_pass",
+        )
+
         st.caption("Your password is the same as your name/username.")
 
         if st.button("Login Champion", key="champion_login_btn"):
-            if login_user in data and login_password == login_user:
-                st.session_state.current_user = login_user
-                st.session_state.champion_logged_in = True
-                st.session_state.mode = "home"
-                st.rerun()
+            if login_user in data:
+                user_clean = login_user.strip().lower()
+                password_clean = (login_password or "").strip().lower()
+
+                if password_clean == user_clean:
+                    st.session_state.current_user = login_user
+                    st.session_state.champion_logged_in = True
+                    st.session_state.mode = "home"
+                    st.rerun()
+                else:
+                    st.error("Incorrect name or password.")
             else:
-                st.error("Incorrect name or password.")
+                st.error("User not found.")
 
 # Admin login
 with st.sidebar.expander("Admin", expanded=False):
@@ -265,7 +292,41 @@ with st.sidebar.expander("Admin", expanded=False):
 
             else:
                 st.info("No lifts recorded for this movement.")
-
+       
+        ## Password reset ###
+        st.markdown("---")
+        st.markdown("**Reset Champion Password**")
+        
+        reset_user = st.selectbox(
+            "Select athlete:",
+            users if users else ["No users"],
+            key="admin_reset_user"
+        )
+        
+        if reset_user in data:
+            current_password = data[reset_user].get("password", reset_user)
+        
+            st.info(f"Current password: {current_password}")
+        
+            new_password = st.text_input(
+                "New Password:",
+                type="password",
+                key="admin_new_password"
+            )
+        
+            if st.button("Update Password", key="update_password_btn"):
+                if new_password:
+                    data[reset_user]["password"] = new_password
+        
+                    client.table("athletes").update(
+                        {"password": new_password}
+                    ).eq("name", reset_user).execute()
+        
+                    st.success("Password updated successfully")
+                    st.rerun()
+                else:
+                    st.warning("Please enter a new password.")
+            
         # ===== DELETE ATHLETE =====
         st.markdown("---")
         st.markdown("**Delete Athlete**")
