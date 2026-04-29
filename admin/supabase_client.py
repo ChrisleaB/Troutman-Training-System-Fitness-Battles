@@ -25,8 +25,11 @@ def load_data() -> Dict[str, Any]:
         athletes: Dict[str, Any] = {}
 
         for row in response.data:
-            athletes[row["name"]] = {
+            name = row["name"].strip()
+        
+            athletes[name] = {  # ✅ use cleaned name
                 "age": row.get("age", 0),
+                "password": (row.get("password") or name).strip(),  # ✅ clean + fallback
                 "weight_kg": row.get("weight_kg", 0),
                 "gym": row.get("gym") or "NA",
                 "base_lifts": {**DEFAULT_BASE_LIFTS, **(row.get("base_lifts") or {})},
@@ -69,9 +72,12 @@ def load_data() -> Dict[str, Any]:
 def add_athlete(name: str, age: int, weight_kg: float, gym: str) -> bool:
     """Add a new athlete."""
     try:
+        clean_name = name.strip()
+
         client.table("athletes").insert(
             {
-                "name": name,
+                "name": clean_name,                       # ✅ cleaned
+                "password": clean_name,                   # ✅ matches username
                 "age": age,
                 "weight_kg": weight_kg,
                 "gym": gym,
