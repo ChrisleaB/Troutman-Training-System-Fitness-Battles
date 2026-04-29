@@ -588,7 +588,7 @@ else:
                 st.info("No multi-rep data available for estimated 1RM tracking.")
             
             st.markdown("---")
-            st.markdown("#### Who's got that DAWG in them")
+            st.markdown("# Who's got that DAWG in them")
             
             # ===== FILTER =====
             if st.session_state.champion_logged_in and st.session_state.current_user:
@@ -650,18 +650,15 @@ else:
             
                 # ===== CHART =====
                 with col1:
-                    st.subheader(
-                        "ℹ️ How to read this chart",
-                        help=(
-                            "Dot size = effort (scaled 1–8)\n\n"
-                            "Effort = (weight ÷ baseline) × reps\n\n"
-                            "Color = relative strength (weight ÷ bodyweight)\n\n"
-                            "Gold ring = >2x bodyweight\n"
-                            "Red ring = SUPER DAWG STATUS (10+ effort)"
-                            
-                        )
+                    st.markdown("#### How to read this chart")
+                    st.caption(
+                        "Dot size = effort (scaled 1–8)\n\n"
+                        "Effort = (weight ÷ baseline) × reps\n\n"
+                        "Color = relative strength (weight ÷ bodyweight)\n\n"
+                        "Gold ring = >2x bodyweight\n"
+                        "Red ring = SUPER DAWG STATUS (10+ effort)"
                     )
-            
+                            
                     fig = px.scatter(
                         df_scatter,
                         x="Reps",
