@@ -516,7 +516,7 @@ else:
             label="Cumulative Score",
             value="",
             help=(
-                "Cumulative Score = 0.4 × PR Gain + 0.3 × (1RM / Bodyweight) + 0.3 × [(Estimated 1RM / Baseline)-1]\n\n"
+                "Cumulative Score = 0.3 × PR Gain + 0.4 × (1RM / Bodyweight) + 0.3 × [(Estimated 1RM / Baseline)-1]\n\n"
                 " Leaderboard cumulative score = back squat score + front squat score\n"
                 "- Estimated 1RM (from 2+ rep submissions)term only counts if > baseline\n"
                 "- Missing values count as 0"
