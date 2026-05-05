@@ -528,8 +528,9 @@ else:
         st.dataframe(overall_df, use_container_width=True)
 
         if overall_df.iloc[0]["Cumulative Score"] > 0:
+            name = str(overall_df.iloc[0]["Name"]).replace("*", "").strip()
             st.success(
-                f"👑 **BEARER OF ABSOLUTE SUPREMACY: {overall_df.iloc[0]['Name']}**\n"
+                f"👑 **BEARER OF ABSOLUTE SUPREMACY: {name}**\n"
                 f"🔥 Score: {overall_df.iloc[0]['Cumulative Score']:.2f} | "
                 f"💪 Total PR: {overall_df.iloc[0]['Total PR']:.1f}kg"
             )
@@ -816,7 +817,7 @@ else:
                             emoji = dawg_ranks[rank] if rank < len(dawg_ranks) else "🐾"
                             name = row["Name"].replace("*", "")
                             st.markdown(
-                                f"{emoji} **{name}** — {row['Lift']}  \n"
+                                f"{emoji} **{name.strip()}** — {row['Lift']}  \n"
                                 f"<span style='color:#888'>Effort: {row['Effort']:.2f}</span>",
                                 unsafe_allow_html=True
                             )
