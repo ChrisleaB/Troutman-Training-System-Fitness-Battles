@@ -80,7 +80,7 @@ def get_cumulative_pr_score(user_data, lift_type):
     else:
         est_ratio = 0
 
-    return 0.4 * pr_gain + 0.3 * bw_ratio + 0.3 * est_ratio
+    return 0.3 * pr_gain + 0.4 * bw_ratio + 0.3 * est_ratio
 
 
 def get_total_cumulative_score(user_data, all_lifts):
