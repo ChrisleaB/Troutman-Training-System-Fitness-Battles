@@ -1,0 +1,23 @@
+name: Keep Streamlit and Supabase Alive
+
+on:
+  schedule:
+    - cron: '0 0,12 * * *'
+
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Ping Streamlit App
+        run: |
+          STATUS=$(curl -L -s -o /dev/null -w "%{http_code}" \
+          "https://tts-ultimate-squat-war-2026.streamlit.app")
+
+          echo "HTTP Status: $STATUS"
+
+          if [ "$STATUS" -ne 200 ]; then
+            exit 1
+          fi
