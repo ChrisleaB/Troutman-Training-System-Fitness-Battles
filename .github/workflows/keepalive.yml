@@ -2,7 +2,7 @@ name: Keep Streamlit and Supabase Alive
 
 on:
   schedule:
-    - cron: '0 0,12 * * *'
+    - cron: '0 11,23 * * *'
 
   workflow_dispatch:
 
