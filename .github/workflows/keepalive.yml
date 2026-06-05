@@ -3,7 +3,6 @@ name: Keep Streamlit and Supabase Alive
 on:
   schedule:
     - cron: '0 11,23 * * *'
-
   workflow_dispatch:
 
 jobs:
@@ -13,11 +12,18 @@ jobs:
     steps:
       - name: Ping Streamlit App
         run: |
-          STATUS=$(curl -L -s -o /dev/null -w "%{http_code}" \
-          "https://tts-ultimate-squat-war-2026.streamlit.app")
+          STATUS=$(curl \
+            --silent \
+            --show-error \
+            --location \
+            --max-redirs 5 \
+            --output /dev/null \
+            --write-out "%{http_code}" \
+            "https://tts-ultimate-squat-war-2026.streamlit.app")
 
           echo "HTTP Status: $STATUS"
 
-          if [ "$STATUS" -ne 200 ]; then
+          if [ "$STATUS" != "200" ]; then
+            echo "Ping failed"
             exit 1
           fi
